@@ -1,11 +1,50 @@
 ATL-Datamart
 ==============================
 
-Projet pour le cours d'atelier Datamart (TRDE704) pour les I1 de l'EPSI
+Projet pour le cours d'atelier Architecture décisionnel Datamart (TRDE704) pour les I1 de l'EPSI.
+
+## Comment utiliser ce template ?
+*  Pour le TP 1 :
+    * Il faudra utiliser le fichier qui se situe à `src/data/grab_parquet.py` et compléter les fonctions qui sont vides.
+    * Remarque : Ne vous cassez pas la tête à effacer les fonctions. Sinon, vous allez augmenter exponentiellement la difficulté de réaliser ce TP
+*  Pour le TP 2 :
+    * Etant donnée qu'il n'existe pas d'ETL traitant les fichiers parquets visuellement. Il faudra utiliser le fichier `src/data/dump_to_sql.py`.
+    * L'implémentation actuellement permet uniquement de prendre les fichiers parquets sauvegardés en local. Vous devriez modifier le programme pour qu'il prenne les fichiers parquets que vous avez stockés dans Minio.
+*  Pour le TP 3:
+    * Vous devez utiliser les requêtes SQL sur le SGBD de votre choix afin de créer les tables en modèle en Flocon. Par soucis de simplicité du sujet, vous êtes libre utiliser le SGBD de votre choix sans tenir compte des propriété OLAP.
+    * Vous aurez donc un script SQL pour chaque tâche distinct :
+      * `creation.sql` pour la création des tables en flocons avec les contraintes associés.
+      * `insertion.sql` pour insérer les données depuis votre base de donnée `Data Warehouse` vers votre base de donnée `Data Mart`
+*   Pour le TP 4 :
+      * Lorsque vous avez fait le TP3, vous devriez normalement avoir une idée sur la restitution des données que vous souhaitez faire dans la partie Dataviz.
+        * Si ce n'est pas le cas, vous pouvez ouvrir un Notebook qui sera sauvegardé dans le dossier `notesbooks` pour réaliser votre Exploration Data Analysis (EDA).
+      * Vous devez connecter votre outil de Data Visualisation à votre base de donnée `Data Mart` afin de produire les visualisations.
+*   Pour le TP 5 (Optionnel):
+      * Cette partie du TP vous servira d'introduction à l'orchestration des tâches d'un projet Big Data. C'est-à-dire de lancer des scripts python de manière totalement automatisée sur un interval définie.
+      * Pour le moment, je vous demande de réaliser une dag qui permet de télécharger un parquet du dernier mois en vigueur (TP 1) et de le stocker vers Minio.
+      * Une fois que vous avez compris le fonctionnement des dags, vous pouvez vous amuser à automatiser le TP 2 et 3 afin de rendre le TP 4 totalement autonome.
+
+Pour le TP 5, il faudra créer vous-même le répertoire suivant :
+Sinon vous risquez d'avoir des problèmes au lancement des conteneurs.
+------------
+
+    ├── airflow
+    │   ├── config       <- Configuration files related to the Airflow Instance
+    │   ├── dags         <- Folder that contains all the dags
+    │   ├── logs         <- Contains the logs of the previously dags run
+    │   └── plugins      <- Should be empty : Contains all needed plugins to make the dag work
+   
+
+
+--------
 
 Project Organization
 ------------
-
+    ├── airflow
+    │   ├── config       <- Configuration files related to the Airflow Instance
+    │   ├── dags         <- Folder that contains all the dags
+    │   ├── logs         <- Contains the logs of the previously dags run
+    │   └── plugins      <- Should be empty : Contains all needed plugins to make the dag work
     ├── LICENSE
     ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
