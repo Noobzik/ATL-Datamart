@@ -2,6 +2,9 @@ ATL-Datamart
 ==============================
 
 Projet pour le cours d'atelier Architecture décisionnel Datamart (TRDE704) pour les I1 de l'EPSI.
+Atelier de Big Data : Introduction aux pipelines de données et Architecture de donnes pour DC Paris
+
+Le sujet est à disposition dans le dossier docs ET le sujet à jour dans votre espace learning.
 
 ## Comment utiliser ce template ?
 *  Pour le TP 1 :
@@ -18,8 +21,9 @@ Projet pour le cours d'atelier Architecture décisionnel Datamart (TRDE704) pour
 *   Pour le TP 4 :
       * Lorsque vous avez fait le TP3, vous devriez normalement avoir une idée sur la restitution des données que vous souhaitez faire dans la partie Dataviz.
         * Si ce n'est pas le cas, vous pouvez ouvrir un Notebook qui sera sauvegardé dans le dossier `notesbooks` pour réaliser votre Exploration Data Analysis (EDA).
+        * Pour les élèves de DC PARIS : Vous avez le choix entre une visualisation sous MATPLOTLIB/PLOTLY ou bien Tableau Desktop / PowerBI
       * Vous devez connecter votre outil de Data Visualisation à votre base de donnée `Data Mart` afin de produire les visualisations.
-*   Pour le TP 5 (Optionnel):
+*   Pour le TP 5 (Optionnel pour EPSI Paris):
       * Cette partie du TP vous servira d'introduction à l'orchestration des tâches d'un projet Big Data. C'est-à-dire de lancer des scripts python de manière totalement automatisée sur un interval définie.
       * Pour le moment, je vous demande de réaliser une dag qui permet de télécharger un parquet du dernier mois en vigueur (TP 1) et de le stocker vers Minio.
       * Une fois que vous avez compris le fonctionnement des dags, vous pouvez vous amuser à automatiser le TP 2 et 3 afin de rendre le TP 4 totalement autonome.
