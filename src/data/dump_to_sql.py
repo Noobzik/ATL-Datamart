@@ -1,8 +1,11 @@
 import gc
 import os
 import sys
+import subprocess
+from io import BytesIO
 
 import pandas as pd
+from minio import Minio
 from sqlalchemy import create_engine
 
 
@@ -19,7 +22,7 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     """
     db_config = {
         "dbms_engine": "postgresql",
-        "dbms_username": "postgres",
+        "dbms_username": "admin",
         "dbms_password": "admin",
         "dbms_ip": "localhost",
         "dbms_port": "15432",
@@ -60,26 +63,57 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
-    folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
+    minio_config = {
+        "endpoint": "localhost:9000",
+        "access_key": "minio",
+        "secret_key": "minio123",
+        "bucket_name": "tp1"
+    }
 
-    parquet_files = [f for f in os.listdir(folder_path) if
-                     f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
+    db_config = {
+        "dbms_engine": "postgresql",
+        "dbms_username": "admin",
+        "dbms_password": "admin",
+        "dbms_ip": "localhost",
+        "dbms_port": "15432",
+        "dbms_database": "nyc_warehouse",
+        "dbms_table": "nyc_raw"
+    }
 
-    for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
+    try:
+        minio_client = Minio(
+            minio_config['endpoint'],
+            access_key=minio_config['access_key'],
+            secret_key=minio_config['secret_key'],
+            secure=False
+        )
 
-        clean_column_name(parquet_df)
-        if not write_data_postgres(parquet_df):
+        # folder_path: str = r'..\..\data\raw'
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Construct the relative path to the folder
+        folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
+
+        parquet_files = minio_client.list_objects(minio_config['bucket_name'], prefix='', recursive=True)
+
+        for parquet_file in parquet_files:
+            object_data = minio_client.get_object(minio_config['bucket_name'], parquet_file.object_name)
+            parquet_df: pd.DataFrame = pd.read_parquet(BytesIO(object_data.read()), engine='pyarrow')
+
+            clean_column_name(parquet_df)
+            if not write_data_postgres(parquet_df):
+                del parquet_df
+                gc.collect()
+                return
+
             del parquet_df
             gc.collect()
-            return
 
-        del parquet_df
-        gc.collect()
+        print("All Parquet files processed successfully")  # Ajout du message de confirmation
+
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()
