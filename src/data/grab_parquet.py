@@ -27,6 +27,11 @@ def main():
     logging.info("Starting last data retrieval process...")
     grab_last_data()
     logging.info("Last data retrieval process completed.")
+
+    # Write data to Minio
+    logging.info("Starting data upload to Minio...")
+    write_data_minio()
+    logging.info("Data upload to Minio completed.")
     
 
 def file_exists(file_path: str) -> bool:
@@ -114,7 +119,9 @@ def grab_data() -> None:
 def write_data_minio():
     """
     This method put all Parquet files into Minio
-    Ne pas faire cette méthode pour le moment
+
+    Returns:
+        - None
     """
     client = Minio(
         "localhost:9000",
@@ -122,12 +129,22 @@ def write_data_minio():
         access_key="minio",
         secret_key="minio123"
     )
-    bucket: str = "NOM_DU_BUCKET_ICI"
+    bucket: str = "nyc-yellow-tripdata"
     found = client.bucket_exists(bucket)
     if not found:
         client.make_bucket(bucket)
     else:
-        print("Bucket " + bucket + " existe déjà")
+        logging.info("Bucket " + bucket + " existe déjà")
+    
+    for file in os.listdir(DATA_DIR): # Get all files in the data directory to save them in Minio
+        if file.endswith(".parquet"):
+            file_path = os.path.join(DATA_DIR, file)
+            if not client.stat_object(bucket, file, None): # If the file does not exist in Minio, upload it
+                client.fput_object(bucket, file, file_path)
+                logging.info(f"{file} uploaded to Minio")
+            else: # If the file exists in Minio, skip the upload
+                logging.info(f"{file} already exists in Minio. Skipping upload")
+
 
 if __name__ == '__main__':
     logging.info("Starting data retrieval process...")
