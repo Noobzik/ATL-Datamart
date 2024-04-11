@@ -78,8 +78,7 @@ target/
 # exclude data from source control by default
 /data/
 
-/minio/datalake/*
-/minio/datalakelast/*
+/minio/*
 
 # Mac OS-specific storage files
 .DS_Store
