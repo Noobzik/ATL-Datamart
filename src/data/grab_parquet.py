@@ -6,6 +6,7 @@ import urllib.request
 import pendulum
 import logging
 from urllib.error import URLError, HTTPError
+from minio_connection import connect_to_minio
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -88,13 +89,13 @@ def grab_last_data(max_attempts = 12) -> None:
 
 def grab_data() -> None:
     """Grab the data from New York Yellow Taxi
-    This function downloads datasets from January 2023 to December 2023 of the New York Yellow Taxi.
+    This function downloads datasets from November 2023 to December 2023 of the New York Yellow Taxi.
 
     Returns:
         - None
     """
     # Months and years to retrieve
-    months = range(1, 13) # January to December
+    months = range(11, 13) # November to December
     years = [2023]
 
     # Download the data
@@ -114,6 +115,23 @@ def grab_data() -> None:
                 logging.info(f"{file_name} already exists. Skipping download.")
 
 
+def exists_in_minio(minio_client: Minio, bucket: str, file: str) -> bool:
+    """
+    This method checks if the data already exists in Minio
+
+    Parameters:
+        - minio_client (Minio): The Minio client.
+        - bucket (str): The bucket to check.
+        - file (str): The file to check.
+
+    Returns:
+        - bool: True if the data already exists in Minio, False otherwise.
+    """
+    try:
+        minio_client.stat_object(bucket, file, None)
+        return True
+    except Exception as e:
+        return False
 
 
 def write_data_minio():
@@ -123,27 +141,30 @@ def write_data_minio():
     Returns:
         - None
     """
-    client = Minio(
-        "localhost:9000",
-        secure=False,
-        access_key="minio",
-        secret_key="minio123"
-    )
-    bucket: str = "nyc-yellow-tripdata"
-    found = client.bucket_exists(bucket)
-    if not found:
-        client.make_bucket(bucket)
-    else:
-        logging.info("Bucket " + bucket + " existe déjà")
+    # Connect to Minio
+    minio_client = connect_to_minio()
+    if minio_client is None: # If the connection fails, exit the script
+        sys.exit(1)
     
+    # Create the bucket if it does not exist
+    bucket: str = "nyc-yellow-tripdata"
+    found = minio_client.bucket_exists(bucket)
+    if not found:
+        minio_client.make_bucket(bucket)
+        logging.info("Bucket " + bucket + " created")
+    else:
+        logging.info("Bucket " + bucket + " found")
+    
+    # Upload all Parquet files to Minio
     for file in os.listdir(DATA_DIR): # Get all files in the data directory to save them in Minio
         if file.endswith(".parquet"):
             file_path = os.path.join(DATA_DIR, file)
-            if not client.stat_object(bucket, file, None): # If the file does not exist in Minio, upload it
-                client.fput_object(bucket, file, file_path)
+            if not exists_in_minio(minio_client, bucket, file): # If the file does not exist in Minio, upload it
+                minio_client.fput_object(bucket, file, file_path)
                 logging.info(f"{file} uploaded to Minio")
             else: # If the file exists in Minio, skip the upload
                 logging.info(f"{file} already exists in Minio. Skipping upload")
+            
 
 
 if __name__ == '__main__':
