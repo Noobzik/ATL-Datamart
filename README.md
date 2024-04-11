@@ -70,9 +70,11 @@ Le projet de création d'un datamart pour les données des taxis de New York Cit
 
 En résumé, les principaux objectifs de ce projet sont de mettre en place une infrastructure robuste pour la gestion des données des taxis de NYC, de garantir la qualité et la disponibilité des données pour l'analyse et la prise de décision, et d'initier les étudiants à des concepts avancés en matière de Business Intelligence et d'automatisation des tâches dans le domaine de l'informatique décisionnelle.
 
+### Lancement du projet
+
 ### Méthodologie
 
-#### TP 1 : Récupération et stockage des données vers un Data Lake
+#### Étape 1 : Récupération des données en local (TP1)
 
 La première étape consistait à récupérer les données des taxis de NYC à partir du site de l'État de New York et à les stocker localement dans le répertoire `data/raw`. Pour cela, j'ai créé 2 fonctions dans le fichier `src/data/grab_parquet.py` :
 
@@ -82,6 +84,12 @@ La première étape consistait à récupérer les données des taxis de NYC à p
 Avant de télécharger chaque fichier, j'ai vérifié s'il existait déjà localement pour éviter les téléchargements redondants.
 
 Le stockage des données dans le répertoire `data/raw` en local a permis de simplifier le processus initial de récupération des données et de garantir un contrôle total sur les fichiers téléchargés avant de les intégrer dans le Data Lake sur Minio.
+
+### Étape 2 : Stockage des données locales en base de données (TP2)
+
+La seconde étape consistait à stocker les données récupérées localement lors de l'étape précédente dans une base de données. Pour cela, j'ai d'abord utilisé Beekeeper pour créer une database appelée `nyc_warehouse`. Ensuite, j'ai lancé le programme `src/data/dump_to_sql.py` qui a récupéré tous les fichiers `.parquet` stockés dans le répertoire `data/raw` et a envoyé les données dans la base `nyc_warehouse`.
+
+Pour améliorer les performances de cette opération, j'ai introduit la notion de chunking dans le programme. Cette approche divise le DataFrame en chunks de taille fixe avant de les écrire dans la base de données. Cela permet de réduire la charge sur la mémoire et d'améliorer l'efficacité de l'opération d'écriture. J'ai également ajouté des logs pour suivre l'avancée du processus.
 
 ### Architecture
 
