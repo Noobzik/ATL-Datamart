@@ -1,17 +1,21 @@
 import gc
 import os
 import sys
+import logging
 
 import pandas as pd
 from sqlalchemy import create_engine
 
+# Configure the logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def write_data_postgres(dataframe: pd.DataFrame) -> bool:
+def write_data_postgres_chunked(dataframe: pd.DataFrame, chunk_size: int = 10000) -> bool:
     """
-    Dumps a Dataframe to the DBMS engine
+    Dumps a Dataframe to the DBMS engine in chunks
 
     Parameters:
         - dataframe (pd.Dataframe) : The dataframe to dump into the DBMS engine
+        - chunk_size (int): The size of each chunk for batch processing
 
     Returns:
         - bool : True if the connection to the DBMS and the dump to the DBMS is successful, False if either
@@ -35,12 +39,17 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         engine = create_engine(db_config["database_url"])
         with engine.connect():
             success: bool = True
-            print("Connection successful! Processing parquet file")
-            dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+            logging.info("Connection successful! Processing parquet file")
+
+            # Split dataframe into chunks and write to database
+            for i in range(0, len(dataframe), chunk_size):
+                chunk = dataframe[i:i+chunk_size]
+                chunk.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+                logging.info(f"Chunk {i//chunk_size + 1} of size {len(chunk)} written to database")
 
     except Exception as e:
         success: bool = False
-        print(f"Error connection to the database: {e}")
+        logging.error(f"Error connection to the database: {e}")
         return success
 
     return success
@@ -60,9 +69,7 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
     folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
 
     parquet_files = [f for f in os.listdir(folder_path) if
@@ -72,7 +79,7 @@ def main() -> None:
         parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
 
         clean_column_name(parquet_df)
-        if not write_data_postgres(parquet_df):
+        if not write_data_postgres_chunked(parquet_df):
             del parquet_df
             gc.collect()
             return
