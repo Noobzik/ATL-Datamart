@@ -4,9 +4,6 @@ Atelier de Big Data : Introduction aux pipelines de données et Architecture de 
 
 ## Comment utiliser ce template ?
 
--   Pour le TP 2 :
-    -   Etant donnée qu'il n'existe pas d'ETL traitant les fichiers parquets visuellement. Il faudra utiliser le fichier `src/data/dump_to_sql.py`.
-    -   L'implémentation actuellement permet uniquement de prendre les fichiers parquets sauvegardés en local. Vous devriez modifier le programme pour qu'il prenne les fichiers parquets que vous avez stockés dans Minio.
 -   Pour le TP 3:
     -   Vous devez utiliser les requêtes SQL sur le SGBD de votre choix afin de créer les tables en modèle en Flocon. Par soucis de simplicité du sujet, vous êtes libre utiliser le SGBD de votre choix sans tenir compte des propriété OLAP.
     -   Vous aurez donc un script SQL pour chaque tâche distinct :
@@ -90,6 +87,16 @@ Le stockage des données dans le répertoire `data/raw` en local a permis de sim
 La seconde étape consistait à stocker les données récupérées localement lors de l'étape précédente dans une base de données. Pour cela, j'ai d'abord utilisé Beekeeper pour créer une database appelée `nyc_warehouse`. Ensuite, j'ai lancé le programme `src/data/dump_to_sql.py` qui a récupéré tous les fichiers `.parquet` stockés dans le répertoire `data/raw` et a envoyé les données dans la base `nyc_warehouse`.
 
 Pour améliorer les performances de cette opération, j'ai introduit la notion de chunking dans le programme. Cette approche divise le DataFrame en chunks de taille fixe avant de les écrire dans la base de données. Cela permet de réduire la charge sur la mémoire et d'améliorer l'efficacité de l'opération d'écriture. J'ai également ajouté des logs pour suivre l'avancée du processus.
+
+De plus, j'ai externalisé la connexion à la base de données dans le fichier `database_operations.py` pour une meilleure lisibilité du code. 
+
+### Étape 3 : Utilisation de Minio (TP1 & TP2)
+
+Étant donné que la gestion des données en local fonctionne, je suis passée à l'utilisation de Minio. Pour cela, j'ai d'abord complété la fonction `write_data_minio` dans le fichier `src/data/grab_parquet.py`. Cette fonction a pour but de récupérer tous les fichiers `.parquet` du répertoire `data/raw` et de les sauvegarder dans Minio. Si un fichier existe déjà dans Minio, je ne le sauvegarde pas à nouveau pour des questions de performance.
+
+Ensuite, je suis passée à la récupération des données de Minio afin de les utiliser pour remplir la database. Pour cela, j'ai modifié le fichier `dump_to_sql.py`. Dans celui-ci, je tente d'abord de récupérer les fichiers depuis Minio (`get_parquet_files_from_minio`), si je ne les ai pas, j'utilise les fichiers en local (`get_parquet_files_locally`).
+
+Pour la connexion à minio, j'ai créé un programme dans le fichier `minio_operations`. Cela permet de factoriser le code pour une meilleure lisibilité mais aussi de changer le code à un seul et unique endroit si nécessaire.
 
 ### Architecture
 
