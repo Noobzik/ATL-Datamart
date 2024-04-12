@@ -15,8 +15,12 @@ def download_files_from_minio(bucket_name, local_directory):
     objects = minio_client.list_objects(bucket_name)
     for obj in objects:
         local_path = os.path.join(local_directory, obj.object_name)
-        minio_client.fget_object(bucket_name, obj.object_name, local_path)
-        print(f"Downloaded: {obj.object_name} to {local_path}")
+        # Vérifiez si le fichier existe déjà avant de le télécharger
+        if not os.path.exists(local_path):
+            minio_client.fget_object(bucket_name, obj.object_name, local_path)
+            print(f"Downloaded: {obj.object_name} to {local_path}")
+        else:
+            print(f"File already exists: {local_path}")
 
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     db_config = {
@@ -35,15 +39,12 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     try:
         engine = create_engine(db_config["database_url"])
         with engine.connect():
-            success = True
             print("Connection successful! Processing parquet file")
             dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+            return True
     except Exception as e:
-        success = False
-        print(f"Error connection to the database: {e}")
-        return success
-
-    return success
+        print(f"Error connecting to the database: {e}")
+        return False
 
 def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
     dataframe.columns = map(str.lower, dataframe.columns)
