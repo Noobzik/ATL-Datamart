@@ -26,7 +26,7 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         "dbms_password": "admin",
         "dbms_ip": "localhost",
         "dbms_port": "15432",
-        "dbms_database": "nyc_warehouse",
+        "dbms_database": "nyc_taxi_trip_warehouse",
         "dbms_table": "nyc_raw"
     }
 
@@ -67,17 +67,7 @@ def main() -> None:
         "endpoint": "localhost:9000",
         "access_key": "minio",
         "secret_key": "minio123",
-        "bucket_name": "tp1"
-    }
-
-    db_config = {
-        "dbms_engine": "postgresql",
-        "dbms_username": "admin",
-        "dbms_password": "admin",
-        "dbms_ip": "localhost",
-        "dbms_port": "15432",
-        "dbms_database": "nyc_warehouse",
-        "dbms_table": "nyc_raw"
+        "bucket_name": "nyc-taxi-data"
     }
 
     try:
