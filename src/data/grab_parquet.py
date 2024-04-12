@@ -6,7 +6,7 @@ import urllib.request
 import pendulum
 import logging
 from urllib.error import URLError, HTTPError
-from minio_connection import connect_to_minio
+from minio_operations import connect_to_minio
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
