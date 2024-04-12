@@ -61,7 +61,6 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
     dataframe.columns = map(str.lower, dataframe.columns)
     return dataframe
 
-
 def main() -> None:
     minio_config = {
         "endpoint": "localhost:9000",
@@ -77,24 +76,22 @@ def main() -> None:
             secret_key=minio_config['secret_key'],
             secure=False
         )
-
-        # folder_path: str = r'..\..\data\raw'
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        # Construct the relative path to the folder
-        folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
-
+        # Récupère la liste des objets stockés dans le bucket Minio spécifié.
         parquet_files = minio_client.list_objects(minio_config['bucket_name'], prefix='', recursive=True)
-
+        # Parcourt tous les objets Parquet trouvés dans le bucket Minio.
         for parquet_file in parquet_files:
+            # Récupère le contenu de l'objet Parquet.
             object_data = minio_client.get_object(minio_config['bucket_name'], parquet_file.object_name)
+            # Lit le contenu de l'objet Parquet.
             parquet_df: pd.DataFrame = pd.read_parquet(BytesIO(object_data.read()), engine='pyarrow')
-
+            # Nettoie les noms de colonnes du DataFrame.
             clean_column_name(parquet_df)
+            # Écrit les données du DataFrame dans la base de données.
             if not write_data_postgres(parquet_df):
                 del parquet_df
                 gc.collect()
                 return
-
+            # Libère la mémoire en supprimant le DataFrame.
             del parquet_df
             gc.collect()
 
