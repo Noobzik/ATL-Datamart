@@ -147,7 +147,7 @@ def write_data_minio():
         sys.exit(1)
     
     # Create the bucket if it does not exist
-    bucket: str = "nyc-yellow-tripdata"
+    bucket: str = os.getenv("MINIO_BUCKET")
     found = minio_client.bucket_exists(bucket)
     if not found:
         minio_client.make_bucket(bucket)
