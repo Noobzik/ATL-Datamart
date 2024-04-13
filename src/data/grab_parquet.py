@@ -1,25 +1,48 @@
 from minio import Minio
 import pandas as pd
 import pyarrow.parquet as pq
+from minio.error import S3Error
 import sys
 import os
+import requests
 
 def main():
     grab_data()
-    
 
 def grab_data() -> None:
-    """Grab the data from New York Yellow Taxi
+    """Grab the data from New York Yellow Taxi"""
 
-    This method download x files of the New York Yellow Taxi. 
-    
-    Files need to be saved into "../../data/raw" folder
-    This methods takes no arguments and returns nothing.
-    """
-    # Directory where the Parquet file is located
+    # Créer le répertoire s'il n'existe pas
     directory = "./data/raw/"
-    
-    # List all files in the directory
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # Liste des mois à télécharger
+    months = ['11', '12']  # Vous pouvez ajouter d'autres mois si nécessaire
+
+    # Année à télécharger
+    year = '2023'  # Modifier l'année si nécessaire
+
+    base_url = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_"
+
+    for month in months:
+        url = f"{base_url}{year}-{month}.parquet"
+        print(f"URL récupérer:  {url}")
+        download_file(url, directory)
+
+def download_file(url: str, directory: str) -> None:
+    """Télécharger un fichier à partir de l'URL spécifiée"""
+
+    file_name = url.split("/")[-1]  # Nom du fichier à partir de l'URL
+    print(f"Téléchargement du fichier {file_name}...")
+    response = requests.get(url)
+    with open(os.path.join(directory, file_name), 'wb') as f:
+        f.write(response.content)
+    print(f"Fichier {file_name} téléchargé avec succès.")
+    get_file_from_directory(directory)
+
+def get_file_from_directory(directory: str) -> None:
+        # List all files in the directory
     files = os.listdir(directory)
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -32,24 +55,26 @@ def grab_data() -> None:
         # Do something with the data, for example, upload to Minio
         write_data_minio(directory, file)
 
+def write_data_minio(directory, file):
+    """Mettre tous les fichiers Parquet dans Minio"""
 
-def write_data_minio(directory,file):
-    """
-    This method put all Parquet files into Minio
-    Ne pas faire cette méthode pour le moment
-    """
     client = Minio(
         "localhost:9000",
         secure=False,
         access_key="minio",
         secret_key="minio123"
     )
-    bucket: str = "tp1"
-    found = client.bucket_exists(bucket)
-    if not found:
-        client.make_bucket(bucket)
-    else:
-        print("Bucket " + bucket + " existe déjà")
+    bucket = "nyc-taxi-data"
+    try:
+        # Vérifiez si le bucket existe
+        if client.bucket_exists(bucket):
+            print(f"Le bucket '{bucket}' existe déjà.")
+        # Si le bucket n'existe pas, créez-le
+        else:
+            client.make_bucket(bucket)
+            print(f"Le bucket '{bucket}' a été créé avec succès.")
+    except S3Error as exc:
+        print(f"Une erreur s'est produite lors de la création du bucket : {exc}")
 
     #Envoi des fichier sur Minio
     try:
@@ -60,6 +85,6 @@ def write_data_minio(directory,file):
         print(f"File {file} uploaded successfully to Minio.")
     except Exception as e:
         print(f"Failed to upload {file} to Minio: {e}")
-        
+
 if __name__ == '__main__':
     sys.exit(main())
