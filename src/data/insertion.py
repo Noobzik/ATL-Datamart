@@ -5,7 +5,7 @@ import psycopg2
 def get_data_from_csv():
     try:
         connection = psycopg2.connect(
-            dbname="postgres",
+            dbname="nyc_datamart",
             user="admin",
             password="admin",
             host="localhost",
