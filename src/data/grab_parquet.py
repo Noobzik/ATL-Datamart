@@ -7,12 +7,15 @@ import pendulum
 import logging
 from urllib.error import URLError, HTTPError
 from minio_operations import connect_to_minio
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Constants
-BASE_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data"
+BASE_URL = f"{os.getenv('DATA_SOURCE_BASE_URL')}/trip-data"
 DATA_DIR = "../../data/raw"
 
 def main():
@@ -20,9 +23,9 @@ def main():
     This function is the entry point for the grab_parquet.py script.
     """
     # Grab data
-    logging.info("Starting 2023 data retrieval process...")
+    logging.info("Starting data retrieval process...")
     grab_data()
-    logging.info("2023 data retrieval process completed.")
+    logging.info("Data retrieval process completed.")
 
     # Grab last data
     logging.info("Starting last data retrieval process...")

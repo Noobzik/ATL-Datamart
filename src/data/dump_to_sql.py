@@ -5,14 +5,14 @@ import logging
 import math
 import pandas as pd
 from minio_operations import connect_to_minio, get_parquet_files_from_minio
-from database_operations import connect_to_database, drop_table, engine
+from database_operations import connect_to_database, disconnect_from_database, drop_table, initialize_datamart
 from grab_parquet import grab_data
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def write_data_postgres(dataframe: pd.DataFrame, chunk_size: int = 10000) -> bool:
+def write_data_postgres(engine, dataframe: pd.DataFrame, chunk_size: int = 10000) -> bool:
     """
     Dumps a Dataframe to the DBMS engine in chunks
 
@@ -34,7 +34,7 @@ def write_data_postgres(dataframe: pd.DataFrame, chunk_size: int = 10000) -> boo
             # Split dataframe into chunks and write to database
             for i in range(0, len(dataframe), chunk_size):
                 chunk = dataframe[i:i+chunk_size]
-                chunk.to_sql(os.getenv('DBMS_TABLE'), engine, index=False, if_exists='append')
+                chunk.to_sql('nyc_raw', engine, index=False, if_exists='append')
                 logging.info(f"Chunk {i//chunk_size + 1}/{total_chunks} of size {len(chunk)} written to database")
             return True
 
@@ -56,7 +56,7 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
     return dataframe
 
 
-def process_parquet_files(folder_path: str, files_from_minio: bool) -> None:
+def process_parquet_files(engine, folder_path: str, files_from_minio: bool) -> None:
     """
     Process Parquet files located in the given folder.
 
@@ -76,7 +76,7 @@ def process_parquet_files(folder_path: str, files_from_minio: bool) -> None:
 
         parquet_df.columns = map(str.lower, parquet_df.columns)  # Clean column names
 
-        if not write_data_postgres(parquet_df):
+        if not write_data_postgres(engine, parquet_df):
             logging.error(f"Error processing {parquet_file}")
             continue
 
@@ -103,16 +103,30 @@ def main() -> None:
         folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
         grab_data()
 
-    # Check if the connection to the database is successful
-    is_connection_successful = connect_to_database()
-    if not is_connection_successful:
+    # Connect to the warehouse database
+    warehouse_engine = connect_to_database(os.getenv('DBMS_WAREHOUSE_DATABASE'))
+    if warehouse_engine is None:
         sys.exit(1)
 
     # Drop the table if it exists
-    # drop_table(os.getenv("DBMS_TABLE"))
+    drop_table(warehouse_engine, os.getenv("DBMS_TABLE"))┤
 
     # Process the parquet files
-    process_parquet_files(folder_path, files_from_minio)
+    process_parquet_files(warehouse_engine, folder_path, files_from_minio)
+
+    # Initialize the datamart database
+    if initialize_datamart(folder_path):
+        logging.info("Datamart initialized successfully.")
+    else:
+        logging.error("Error initializing the datamart.")
+        sys.exit(1)
+
+    
+    # Disconnect from the databases
+    disconnect_from_database(warehouse_engine)
+    disconnect_from_database(datamart_engine)
+
+
 
 
 if __name__ == '__main__':
