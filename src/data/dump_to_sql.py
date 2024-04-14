@@ -1,6 +1,8 @@
 import gc
 import os
 import sys
+import Constants
+from minio import Minio
 
 import pandas as pd
 from sqlalchemy import create_engine
@@ -24,7 +26,7 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         "dbms_ip": "localhost",
         "dbms_port": "15432",
         "dbms_database": "nyc_warehouse",
-        "dbms_table": "nyc_raw"
+        "dbms_table": "nyc_raw",
     }
 
     db_config["database_url"] = (
@@ -36,7 +38,9 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         with engine.connect():
             success: bool = True
             print("Connection successful! Processing parquet file")
-            dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+            dataframe.to_sql(
+                db_config["dbms_table"], engine, index=False, if_exists="append"
+            )
 
     except Exception as e:
         success: bool = False
@@ -60,17 +64,15 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
-    folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
+    client = Minio(
+        "localhost:9000",
+        secure=False,
+        access_key="minio",
+        secret_key="minio123",
+    )
 
-    parquet_files = [f for f in os.listdir(folder_path) if
-                     f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
-
-    for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
-
+    for item in client.list_objects(Constants.BUCKET_NAME, recursive=True):
+        parquet_df: pd.DataFrame = pd.read_parquet(item.object_name, engine="pyarrow")
         clean_column_name(parquet_df)
         if not write_data_postgres(parquet_df):
             del parquet_df
@@ -81,5 +83,5 @@ def main() -> None:
         gc.collect()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
