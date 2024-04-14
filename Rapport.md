@@ -138,9 +138,9 @@ Cela implique d'identifier les entités, les relations entre celles-ci, ainsi qu
 
 Dans ce cadre, un modèle en flocons a été envisagé(img1), offrant une granularité accrue dans la représentation des données, mais lors de la mise en pratique, une approche plus pragmatique a été adoptée(img2). Il a été décidé de privilégier la mise en œuvre d'un modèle plus simple et plus direct, ce qui a permis d'avancer plus rapidement dans la réalisation des TP.
 
-![datamart-flocons](https://drive.google.com/file/d/1un6Y98DDQDrYe_ZL_vdGEXMAd2UHEI0j/view?usp=sharing)
+![datamart-flocons](./docs/datamart_flocons.png)
 
-![datamart-flocons-simplified](https://drive.google.com/file/d/1un6Y98DDQDrYe_ZL_vdGEXMAd2UHEI0j/view?usp=sharing)
+![datamart-flocons-simplified](./docs/datamart_flocons_simplified.png)
     
     creation.sql
 
