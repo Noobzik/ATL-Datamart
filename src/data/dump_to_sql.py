@@ -38,7 +38,8 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         with engine.connect():
             success: bool = True
             print("Connection successful! Processing parquet file")
-            dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+            chunksize = 100000
+            dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append', chunksize=chunksize)
 
     except Exception as e:
         success: bool = False
@@ -83,25 +84,21 @@ def main() -> None:
     else:
         print(f"Bucket {bucket} already exists")
         
-    # # Loop through the parquet files and write them to the database
     parquet_files = client.list_objects(bucket, recursive=True)
 
     for parquet_file in parquet_files:
-        if parquet_file.object_name == "yellow_tripdata_2023-01.parquet":
-            response = client.get_object(bucket, parquet_file.object_name)
-            
-            parquet_df = pd.read_parquet(BytesIO(response.data), engine='pyarrow')
+        response = client.get_object(bucket, parquet_file.object_name)
+        
+        parquet_df = pd.read_parquet(BytesIO(response.data), engine='pyarrow')
 
-            clean_column_name(parquet_df)
-            if not write_data_postgres(parquet_df):
-                del parquet_df
-                gc.collect()
-                return
-
+        clean_column_name(parquet_df)
+        if not write_data_postgres(parquet_df):
             del parquet_df
             gc.collect()
-        else:
             return
+
+        del parquet_df
+        gc.collect()
 
 
 if __name__ == '__main__':

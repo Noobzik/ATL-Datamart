@@ -86,7 +86,7 @@ services:
       start_period: 5s
     restart: always
     ports:
-      - "15433:5432"
+      - "15434:5432"
     networks:
       - spark_network
 
