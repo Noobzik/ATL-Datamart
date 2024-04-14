@@ -1,7 +1,5 @@
 import gc
-import os
 import sys
-import subprocess
 from io import BytesIO
 
 import pandas as pd

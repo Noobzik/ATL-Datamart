@@ -18,8 +18,8 @@ def download_parquet(**kwargs):
 
     month: str = pendulum.now().subtract(months=2).format('YYYY-MM')
     try:
-        ___.___(___,
-                            ___)
+        # Télécharge le fichier Parquet à partir de l'URL spécifiée
+        request.urlretrieve(url + filename + "_" + month + extension, filename + "_" + month + extension)
     except urllib.error.URLError as e:
         raise RuntimeError(f"Failed to download the parquet file : {str(e)}") from e
 
@@ -40,10 +40,10 @@ def upload_file(**kwargs):
     month: str = pendulum.now().subtract(months=2).format('YYYY-MM')
     print(client.list_buckets())
 
-    client.___(
-        bucket_name=___,
-        object_name=___,
-        file_path=___)
+    client.put_object(
+        bucket_name=bucket,
+        object_name="yellow_tripdata_" + month + ".parquet",
+        file_path= "yellow_tripdata_" + month + ".parquet")
     # On supprime le fichié récement téléchargés, pour éviter la redondance. On suppose qu'en arrivant ici, l'ajout est
     # bien réalisé
     os.remove(os.path.join("./", "yellow_tripdata_" + month + ".parquet"))
@@ -61,12 +61,12 @@ with DAG(dag_id='Grab NYC Data to Minio',
     t1 = PythonOperator(
         task_id='download_parquet',
         provide_context=True,
-        python_callable=___
+        python_callable=download_parquet
     )
     t2 = PythonOperator(
         task_id='upload_file_task',
         provide_context=True,
-        python_callable=___
+        python_callable=upload_file
     )
 ###############################################  
 

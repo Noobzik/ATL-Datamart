@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS dim_location (
 
 CREATE TABLE IF NOT EXISTS dim_taximeter_engagement_zones_dimension (
     id SERIAL PRIMARY KEY ,
-    pu_location TIMESTAMP,
-    po_location TIMESTAMP,
+    pu_location INT,
+    do_location INT,
     location_id INT,
     CONSTRAINT fk_location_id FOREIGN KEY (location_id) REFERENCES dim_location(id)
 );
