@@ -1,80 +1,101 @@
--- Insertion dans les tables de dimensions
 INSERT INTO
-    Dim_Vendors (Name)
+    dim_date (
+        date, day_of_week, month, year, hour, minute
+    )
 SELECT DISTINCT
-    VendorName
-FROM raw_trips ON CONFLICT (Name) DO NOTHING;
-
-INSERT INTO
-    Dim_Time (Date, Hour, DayOfWeek)
-SELECT DISTINCT
-    CAST(pickup_datetime AS DATE),
+    CAST(datetime AS DATE) AS date,
+    TO_CHAR (datetime, 'Day') AS day_of_week,
+    TO_CHAR (datetime, 'Month') AS month,
+    EXTRACT(
+        YEAR
+        FROM datetime
+    ) AS year,
     EXTRACT(
         HOUR
-        FROM pickup_datetime
-    ),
+        FROM datetime
+    ) AS hour,
     EXTRACT(
-        DOW
-        FROM pickup_datetime
-    )
-FROM raw_trips ON CONFLICT (Date, Hour, DayOfWeek) DO NOTHING;
+        MINUTE
+        FROM datetime
+    ) AS minute
+FROM (
+        SELECT tpep_pickup_datetime AS datetime
+        FROM nyc
+        UNION
+        SELECT tpep_dropoff_datetime AS datetime
+        FROM nyc
+    ) AS datetimes ON CONFLICT (date, hour, minute) DO NOTHING;
 
 INSERT INTO
-    Dim_Locations (Borough, Zone)
+    dim_location (location_key)
 SELECT DISTINCT
-    PickupBorough,
-    PickupZone
-FROM raw_trips
-UNION
-SELECT DISTINCT
-    DropoffBorough,
-    DropoffZone
-FROM raw_trips ON CONFLICT (Borough, Zone) DO NOTHING;
+    location_id
+FROM (
+        SELECT pulocationid AS location_id
+        FROM nyc
+        UNION
+        SELECT dolocationid AS location_id
+        FROM nyc
+    ) AS location_ids
+WHERE
+    location_id IS NOT NULL ON CONFLICT (location_key) DO NOTHING;
 
 INSERT INTO
-    Dim_PaymentTypes (Description)
+    dim_payment (payment_key)
 SELECT DISTINCT
-    PaymentType
-FROM raw_trips ON CONFLICT (Description) DO NOTHING;
+    payment_type
+FROM nyc
+WHERE
+    payment_type IS NOT NULL ON CONFLICT (payment_key) DO NOTHING;
 
--- Insertion dans la table de faits
 INSERT INTO
-    Fact_Trips (
-        VendorID, PickupTimeID, DropoffTimeID, PassengerCount, TripDistance, RateCodeID, StoreAndFwdFlag, PaymentTypeID, FareAmount, Extra, MtaTax, TipAmount, TollsAmount, ImprovementSurcharge, TotalAmount, PickupLocationID, DropoffLocationID
+    fact_rides (
+        vendor_id, pickup_datetime_key, dropoff_datetime_key, passenger_count, trip_distance, ratecode_id, store_and_fwd_flag, pickup_location_key, dropoff_location_key, payment_key, fare_amount, extra, mta_tax, tip_amount, tolls_amount, improvement_surcharge, total_amount, congestion_surcharge, airport_fee
     )
 SELECT
-    v.VendorID,
-    pt_pick.TimeID,
-    pt_drop.TimeID,
-    rt.PassengerCount,
-    rt.TripDistance,
-    rt.RateCodeID,
-    rt.StoreAndFwdFlag,
-    pt.PaymentTypeID,
-    rt.FareAmount,
-    rt.Extra,
-    rt.MtaTax,
-    rt.TipAmount,
-    rt.TollsAmount,
-    rt.ImprovementSurcharge,
-    rt.TotalAmount,
-    loc_pick.LocationID,
-    loc_drop.LocationID
+    n.vendorid,
+    pd.date_key AS pickup_datetime_key,
+    dd.date_key AS dropoff_datetime_key,
+    n.passenger_count,
+    n.trip_distance,
+    n.ratecodeid,
+    n.store_and_fwd_flag,
+    n.pulocationid AS pickup_location_key,
+    n.dolocationid AS dropoff_location_key,
+    n.payment_type AS payment_key,
+    n.fare_amount,
+    n.extra,
+    n.mta_tax,
+    n.tip_amount,
+    n.tolls_amount,
+    n.improvement_surcharge,
+    n.total_amount,
+    n.congestion_surcharge,
+    n.airport_fee
 FROM
-    raw_trips rt
-    JOIN Dim_Vendors v ON rt.VendorName = v.Name
-    JOIN Dim_Time pt_pick ON CAST(rt.pickup_datetime AS DATE) = pt_pick.Date
-    AND EXTRACT(
+    nyc n
+    JOIN dim_date pd ON pd.date = CAST(
+        n.tpep_pickup_datetime AS DATE
+    )
+    AND pd.hour = EXTRACT(
         HOUR
-        FROM rt.pickup_datetime
-    ) = pt_pick.Hour
-    JOIN Dim_Time pt_drop ON CAST(rt.dropoff_datetime AS DATE) = pt_drop.Date
-    AND EXTRACT(
+        FROM n.tpep_pickup_datetime
+    )
+    AND pd.minute = EXTRACT(
+        MINUTE
+        FROM n.tpep_pickup_datetime
+    )
+    JOIN dim_date dd ON dd.date = CAST(
+        n.tpep_dropoff_datetime AS DATE
+    )
+    AND dd.hour = EXTRACT(
         HOUR
-        FROM rt.dropoff_datetime
-    ) = pt_drop.Hour
-    JOIN Dim_Locations loc_pick ON rt.PickupBorough = loc_pick.Borough
-    AND rt.PickupZone = loc_pick.Zone
-    JOIN Dim_Locations loc_drop ON rt.DropoffBorough = loc_drop.Borough
-    AND rt.DropoffZone = loc_drop.Zone
-    JOIN Dim_PaymentTypes pt ON rt.PaymentType = pt.Description;
+        FROM n.tpep_dropoff_datetime
+    )
+    AND dd.minute = EXTRACT(
+        MINUTE
+        FROM n.tpep_dropoff_datetime
+    )
+    JOIN dim_location pl ON pl.location_key = n.pulocationid
+    JOIN dim_location dl ON dl.location_key = n.dolocationid
+    JOIN dim_payment p ON p.payment_key = n.payment_type;
