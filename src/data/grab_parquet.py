@@ -57,6 +57,6 @@ def write_data_minio():
 
 if __name__ == '__main__':
     start_date = datetime(2020, 1, 1)
-    end_date = datetime(2020, 5, 1)
+    end_date = datetime(2020, 2, 1)
     main(start_date=start_date, end_date=end_date)
 
