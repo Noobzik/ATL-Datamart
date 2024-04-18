@@ -108,7 +108,7 @@ services:
       <<: *airflow-common
       command: webserver
       ports:
-        - "8080:8080"
+        - "8081:8081"
       healthcheck:
         test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
         interval: 30s
@@ -288,7 +288,7 @@ services:
         - spark_network
 
 
-
+        
 
 networks:
   spark_network:
