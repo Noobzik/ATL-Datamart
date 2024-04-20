@@ -71,7 +71,7 @@ def get_parquet_files_from_minio(bucket_name: str) -> list:
     return parquet_files
 
 def main() -> None:
-    bucket_name = "nycwarehouse"  # Remplacez "votre-bucket-minio" par le nom de votre bucket Minio
+    bucket_name = "nycwarehouse" 
 
 
     # Récupérer les fichiers Parquet depuis Minio
