@@ -13,3 +13,5 @@ pendulum
 pandas
 sqlalchemy
 setuptools
+pyarrow
+psycopg2
