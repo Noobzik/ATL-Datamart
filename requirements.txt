@@ -15,3 +15,6 @@ sqlalchemy
 setuptools
 pyarrow
 psycopg2
+
+matplotlib
+

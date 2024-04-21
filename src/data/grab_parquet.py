@@ -82,6 +82,7 @@ def write_data_minio():
             src = os.path.join(folder, parquet_file)
 
             client.fput_object(bucket, parquet_file, src)
+
             print(
                 parquet_file,
                 "successfully uploaded as object",
