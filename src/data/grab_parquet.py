@@ -44,7 +44,7 @@ def write_data_minio(directory,file):
         access_key="minio",
         secret_key="minio123"
     )
-    bucket: str = "tp1"
+    bucket: str = "nyc-taxi-trip"
     found = client.bucket_exists(bucket)
     if not found:
         client.make_bucket(bucket)

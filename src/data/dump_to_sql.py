@@ -2,9 +2,50 @@ import gc
 import sys
 from io import BytesIO
 
+import psycopg2
+from psycopg2 import sql
+
 import pandas as pd
 from minio import Minio
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
+
+
+def create_database_if_not_exits():
+    try:
+        # Connexion au serveur PostgreSQL
+        conn = psycopg2.connect(
+            dbname="postgres",
+            user="admin",
+            password="admin",
+            host="localhost",
+            port="15432",
+        )
+        conn.autocommit = True
+        print("Connexion au serveur PostgreSQL réussie.")
+
+        # Vérification de l'existence de la base de données
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = 'nyc_warehouse';")
+        exists = cur.fetchone()
+        cur.close()
+
+        if not exists:
+            # Création de la base de données si elle n'existe pas
+            cur = conn.cursor()
+            cur.execute(sql.SQL('CREATE DATABASE nyc_warehouse;'))
+            cur.close()
+            print("Base de données 'nyc_warehouse' créée avec succès.")
+        else:
+            print("La base de données 'nyc_warehouse' existe déjà.")
+
+    except OperationalError as e:
+        print(f"Error: {e}")
+
+    finally:
+        if conn is not None:
+            conn.close()
+
 
 
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
@@ -18,6 +59,8 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         - bool : True if the connection to the DBMS and the dump to the DBMS is successful, False if either
         execution is failed
     """
+
+    # Configuration de la base de données PostgreSQL
     db_config = {
         "dbms_engine": "postgresql",
         "dbms_username": "admin",
@@ -32,6 +75,9 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         f"{db_config['dbms_engine']}://{db_config['dbms_username']}:{db_config['dbms_password']}@"
         f"{db_config['dbms_ip']}:{db_config['dbms_port']}/{db_config['dbms_database']}"
     )
+
+    create_database_if_not_exits()
+
     try:
         engine = create_engine(db_config["database_url"])
         with engine.connect():
@@ -64,7 +110,7 @@ def main() -> None:
         "endpoint": "localhost:9000",
         "access_key": "minio",
         "secret_key": "minio123",
-        "bucket_name": "nyc-taxi-data"
+        "bucket_name": "nyc-taxi-trip"
     }
 
     try:
