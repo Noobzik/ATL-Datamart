@@ -26,7 +26,6 @@ def write_data_postgres(engine, dataframe: pd.DataFrame, chunk_size: int = 10000
     """
     try:
         with engine.connect():
-            success: bool = True
             logging.info("Connection successful! Processing parquet file")
 
             total_chunks = math.ceil(len(dataframe) / chunk_size)  # Calculate total chunks
@@ -109,7 +108,7 @@ def main() -> None:
         sys.exit(1)
 
     # Drop the table if it exists
-    drop_table(warehouse_engine, os.getenv("DBMS_TABLE"))┤
+    drop_table(warehouse_engine, 'nyc_raw')
 
     # Process the parquet files
     process_parquet_files(warehouse_engine, folder_path, files_from_minio)
@@ -124,7 +123,6 @@ def main() -> None:
     
     # Disconnect from the databases
     disconnect_from_database(warehouse_engine)
-    disconnect_from_database(datamart_engine)
 
 
 

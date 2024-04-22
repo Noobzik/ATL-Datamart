@@ -18,8 +18,7 @@ def download_parquet(**kwargs):
 
     month: str = pendulum.now().subtract(months=2).format('YYYY-MM')
     try:
-        ___.___(___,
-                            ___)
+        request.urlretrieve(f"{url}{filename}_{month}{extension}", f"yellow_tripdata_{month}.parquet")
     except urllib.error.URLError as e:
         raise RuntimeError(f"Failed to download the parquet file : {str(e)}") from e
 
@@ -30,7 +29,7 @@ def upload_file(**kwargs):
     # Upload generated file to Minio
 
     client = Minio(
-        "minio:9000",
+        "minio:9001",
         secure=False,
         access_key="minio",
         secret_key="minio123"
@@ -40,10 +39,11 @@ def upload_file(**kwargs):
     month: str = pendulum.now().subtract(months=2).format('YYYY-MM')
     print(client.list_buckets())
 
-    client.___(
-        bucket_name=___,
-        object_name=___,
-        file_path=___)
+    client.fput_object(
+        bucket_name=bucket,
+        object_name=f"yellow_tripdata_{month}.parquet",
+        file_path=f"yellow_tripdata_{month}.parquet"
+    )
     # On supprime le fichié récement téléchargés, pour éviter la redondance. On suppose qu'en arrivant ici, l'ajout est
     # bien réalisé
     os.remove(os.path.join("./", "yellow_tripdata_" + month + ".parquet"))
@@ -52,8 +52,7 @@ def upload_file(**kwargs):
 ###############################################
 with DAG(dag_id='Grab NYC Data to Minio',
          start_date=days_ago(1),
-         schedule_interval=None,
-         catchup=False,
+         schedule_interval="0 0 1 * *", # Expression cron pour exécuter tous les premiers du mois à minuit
          tags=['minio/read/write'],
          ) as dag:
     ###############################################
@@ -61,12 +60,12 @@ with DAG(dag_id='Grab NYC Data to Minio',
     t1 = PythonOperator(
         task_id='download_parquet',
         provide_context=True,
-        python_callable=___
+        python_callable=download_parquet
     )
     t2 = PythonOperator(
         task_id='upload_file_task',
         provide_context=True,
-        python_callable=___
+        python_callable=upload_file
     )
 ###############################################  
 

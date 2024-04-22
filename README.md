@@ -2,34 +2,6 @@
 
 Atelier de Big Data : Introduction aux pipelines de données et Architecture de donnes pour DC Paris
 
-## Comment utiliser ce template ?
-
--   Pour le TP 3:
-    -   Vous devez utiliser les requêtes SQL sur le SGBD de votre choix afin de créer les tables en modèle en Flocon. Par soucis de simplicité du sujet, vous êtes libre utiliser le SGBD de votre choix sans tenir compte des propriété OLAP.
-    -   Vous aurez donc un script SQL pour chaque tâche distinct :
-        -   `creation.sql` pour la création des tables en flocons avec les contraintes associés.
-        -   `insertion.sql` pour insérer les données depuis votre base de donnée `Data Warehouse` vers votre base de donnée `Data Mart`
--   Pour le TP 4 :
-    -   Lorsque vous avez fait le TP3, vous devriez normalement avoir une idée sur la restitution des données que vous souhaitez faire dans la partie Dataviz.
-        -   Si ce n'est pas le cas, vous pouvez ouvrir un Notebook qui sera sauvegardé dans le dossier `notesbooks` pour réaliser votre Exploration Data Analysis (EDA).
-        -   Pour les élèves de DC PARIS : Vous avez le choix entre une visualisation sous MATPLOTLIB/PLOTLY ou bien Tableau Desktop / PowerBI
-    -   Vous devez connecter votre outil de Data Visualisation à votre base de donnée `Data Mart` afin de produire les visualisations.
--   Pour le TP 5:
-    -   Cette partie du TP vous servira d'introduction à l'orchestration des tâches d'un projet Big Data. C'est-à-dire de lancer des scripts python de manière totalement automatisée sur un interval définie.
-    -   Pour le moment, je vous demande de réaliser une dag qui permet de télécharger un parquet du dernier mois en vigueur (TP 1) et de le stocker vers Minio.
-    -   Une fois que vous avez compris le fonctionnement des dags, vous pouvez vous amuser à automatiser le TP 2 et 3 afin de rendre le TP 4 totalement autonome.
-
-Pour le TP 5, il faudra créer vous-même le répertoire suivant :
-Sinon vous risquez d'avoir des problèmes au lancement des conteneurs.
-
----
-
-    ├── airflow
-    │   ├── config       <- Configuration files related to the Airflow Instance
-    │   ├── dags         <- Folder that contains all the dags
-    │   ├── logs         <- Contains the logs of the previously dags run
-    │   └── plugins      <- Should be empty : Contains all needed plugins to make the dag work
-
 ---
 
 ## Rapport
@@ -82,6 +54,12 @@ Avant de télécharger chaque fichier, j'ai vérifié s'il existait déjà local
 
 Le stockage des données dans le répertoire `data/raw` en local a permis de simplifier le processus initial de récupération des données et de garantir un contrôle total sur les fichiers téléchargés avant de les intégrer dans le Data Lake sur Minio.
 
+Pour cette étape, j'ai utilisé les bibliothèques Python suivantes :
+- `urllib` : Pour récupérer les données en utilisant les URL spécifiques des enregistrements de voyages des taxis de NYC.
+- `pendulum` : Pour gérer la date et remonter dans les mois afin de trouver le fichier le plus récent disponible.
+- `os` : Pour effectuer des opérations sur les chemins de fichiers et les répertoires, comme la vérification de l'existence de fichiers locaux avant le téléchargement.
+
+
 ### Étape 2 : Stockage des données locales en base de données (TP2)
 
 La seconde étape consistait à stocker les données récupérées localement lors de l'étape précédente dans une base de données. Pour cela, j'ai d'abord utilisé Beekeeper pour créer une database appelée `nyc_warehouse`. Ensuite, j'ai lancé le programme `src/data/dump_to_sql.py` qui a récupéré tous les fichiers `.parquet` stockés dans le répertoire `data/raw` et a envoyé les données dans la base `nyc_warehouse`.
@@ -90,6 +68,15 @@ Pour améliorer les performances de cette opération, j'ai introduit la notion d
 
 De plus, j'ai externalisé la connexion à la base de données dans le fichier `database_operations.py` pour une meilleure lisibilité du code. 
 
+Pour cela, j'ai utilisé les outils et bibliothèques suivants :
+
+- `Beekeeper` : Pour créer une base de données appelée nyc_warehouse.
+- `SQLAlchemy` : Pour interagir avec la base de données et exécuter des requêtes SQL.
+- `pandas` : Pour lire les fichiers Parquet locaux et les charger dans des DataFrames.
+- `os` : Pour obtenir la liste des fichiers Parquet stockés localement et itérer sur eux.
+- `logging` : Pour journaliser les étapes du processus de stockage des données.
+
+
 ### Étape 3 : Utilisation de Minio (TP1 & TP2)
 
 Étant donné que la gestion des données en local fonctionne, je suis passée à l'utilisation de Minio. Pour cela, j'ai d'abord complété la fonction `write_data_minio` dans le fichier `src/data/grab_parquet.py`. Cette fonction a pour but de récupérer tous les fichiers `.parquet` du répertoire `data/raw` et de les sauvegarder dans Minio. Si un fichier existe déjà dans Minio, je ne le sauvegarde pas à nouveau pour des questions de performance.
@@ -97,6 +84,54 @@ De plus, j'ai externalisé la connexion à la base de données dans le fichier `
 Ensuite, je suis passée à la récupération des données de Minio afin de les utiliser pour remplir la database. Pour cela, j'ai modifié le fichier `dump_to_sql.py`. Dans celui-ci, je tente d'abord de récupérer les fichiers depuis Minio (`get_parquet_files_from_minio`), si je ne les ai pas, j'utilise les fichiers en local (`get_parquet_files_locally`).
 
 Pour la connexion à minio, j'ai créé un programme dans le fichier `minio_operations`. Cela permet de factoriser le code pour une meilleure lisibilité mais aussi de changer le code à un seul et unique endroit si nécessaire.
+
+Pour cela, j'ai utilisé les bibliothèques suivantes :
+- `Minio` : Pour interagir avec Minio et stocker les fichiers Parquet.
+- `urllib` : Pour récupérer les données localement si elles ne sont pas disponibles dans Minio.
+- `os` : Pour obtenir la liste des fichiers Parquet locaux et les charger dans Minio.
+- `logging` : Pour journaliser les étapes du processus de sauvegarde dans Minio.
+
+### Étape 4 : Création des tables en modèle en Flocon (TP3)
+Dans cette étape, j'ai utilisé les requêtes SQL pour créer les tables en modèle en Flocon. Voici les principales étapes que j'ai suivies :
+
+- Analyse des données: J'ai examiné les données disponibles et identifié les dimensions et les faits pertinents pour concevoir le modèle en Flocon dans un SGBD `PostgreSQL`.
+- Conception du modèle en Flocon: En utilisant les connaissances acquises lors de l'analyse des données, j'ai conçu un modèle en Flocon qui comprend une table de faits et des tables de dimensions.
+- Écriture des requêtes SQL: J'ai écrit des requêtes SQL pour créer les tables en Flocon dans le fichier `src/data/creation.sql`.
+- Test et validation: Une fois les requêtes SQL écrites, j'ai exécuté ces scripts pour créer les tables en Flocon dans le SGBD. J'ai ensuite vérifié que les tables étaient correctement créées en examinant leur structure.
+
+### Étape 5 : Insertion des données dans le Data Mart (TP3)
+Dans cette étape, j'ai inséré les données provenant de la base de données Data Warehouse dans la base de données Data Mart. Voici les étapes que j'ai suivies :
+
+- Analyse des données: J'ai examiné les données disponibles dans la base de données Data Warehouse et identifié les données à insérer dans le Data Mart.
+- Écriture des requêtes SQL: J'ai écrit des requêtes SQL pour extraire les données de la base de données Data Warehouse et les insérer dans les tables correspondantes du Data Mart dans le fichier `insertion.sql`. Ces requêtes incluaient des instructions INSERT INTO SELECT pour copier les données d'une base de données à l'autre.
+- Exécution des requêtes: J'ai exécuté les requêtes SQL pour insérer les données dans le Data Mart. J'ai surveillé l'avancement de l'opération et vérifié que toutes les données étaient correctement transférées.
+Test et validation: Une fois les données insérées, j'ai comparé les données du Data Mart avec celles de la base de données Data Warehouse pour m'assurer qu'elles correspondaient.
+
+
+### Étape 6 : Exploration Data Analysis (TP4)
+Dans cette étape, j'ai effectué une Analyse Exploratoire des Données (EDA) pour mieux comprendre les données stockées dans le Data Mart. Voici les étapes que j'ai suivies :
+
+- Analyse des données: J'ai examiné les données disponibles dans le Data Mart et identifié les variables d'intérêt ainsi que les relations potentielles entre ces variables.
+- Visualisation des données: J'ai créé des visualisations graphiques telles que des histogrammes, des diagrammes de dispersion et des graphiques linéaires pour explorer les distributions et les corrélations des données.
+- Identification des KPIs: J'ai identifié les Key Performance Indicators (KPIs) pertinents pour évaluer les performances du système et guider la prise de décision.
+
+
+### Étape 7 : Conception du tableau de bord (TP4)
+Dans cette étape, j'ai conçu un tableau de bord pour visualiser les résultats de l'analyse des données. Voici les principales étapes que j'ai suivies :
+
+- Sélection des outils de visualisation: J'ai choisi d'utiliser `matplotlib` pour créer le tableau de bord.
+- Création des visualisations: J'ai créé le tableau de bord à partir des visualisations graphiques.  
+- Intégration des KPIs: J'ai intégré les KPIs identifiés lors de l'EDA dans le tableau de bord pour fournir une vue d'ensemble.
+
+
+### Étape 8 : Automatisation des tâches avec Apache Airflow (TP5)
+Dans cette étape, j'ai utilisé Apache Airflow pour automatiser le processus de récupération du dernier mois de données. Voici les étapes que j'ai suivies :
+
+- Création d'une DAG: J'ai créé une DAG dans Apache Airflow pour définir le flux de travail automatisé. La DAG comprend des tâches pour télécharger le dernier mois de données et les stocker dans Minio.
+- Planification des tâches: J'ai planifié l'exécution de la DAG pour qu'elle se déclenche automatiquement tous les premiers du mois, en utilisant des expressions cron pour définir l'horaire de déclenchement.
+- Configuration des connexions: J'ai configuré les connexions Airflow pour se connecter au système de stockage Minio et accéder aux données.
+Test et validation: J'ai testé la DAG pour m'assurer qu'elle fonctionnait correctement et qu'elle récupérait les données attendues chaque mois.
+
 
 ### Architecture
 

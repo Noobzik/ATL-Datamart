@@ -5,7 +5,7 @@ INSERT INTO
         (2, 'VeriFone Inc.'),
         (6, 'Other');
 
-INSERT INTO
+ INSERT INTO
     dim_rate_code (rate_code_id, description) 
     VALUES 
         (1, 'Standard rate'),
@@ -33,17 +33,18 @@ INSERT INTO
         (5, 'Unknown'),
         (6, 'Voided trip');
 
+-- Connect to the warehouse database
 CREATE EXTENSION IF NOT EXISTS postgres_fdw;
 
-CREATE SERVER warehouse_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (
+CREATE SERVER IF NOT EXISTS warehouse_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (
     host 'localhost', port '5432', dbname 'nyc_warehouse'
 );
 
-CREATE USER MAPPING FOR current_user SERVER warehouse_server OPTIONS (
+CREATE USER MAPPING IF NOT EXISTS FOR current_user SERVER warehouse_server OPTIONS (
     user 'postgres', password 'admin'
 );
 
-CREATE FOREIGN TABLE nyc_raw_fdw (
+CREATE FOREIGN TABLE IF NOT EXISTS nyc_raw_fdw (
     vendorid INT,
     tpep_pickup_datetime TIMESTAMP,
     tpep_dropoff_datetime TIMESTAMP,
@@ -111,3 +112,60 @@ INSERT INTO
         congestion_surcharge,
         airport_fee
 FROM nyc_raw_fdw;
+
+INSERT INTO 
+    fact_trip_without_outliers (
+        vendor_id,
+        tpep_pickup_datetime,
+        tpep_dropoff_datetime,
+        passenger_count,
+        trip_distance,
+        rate_code_id,
+        store_and_fwd_flag,
+        pulocationid,
+        dolocationid,
+        payment_type_id,
+        fare_amount,
+        extra,
+        mta_tax,
+        tip_amount,
+        tolls_amount,
+        improvement_surcharge,
+        total_amount,
+        congestion_surcharge, 
+        airport_fee
+    )
+    SELECT
+        vendorid,
+        tpep_pickup_datetime,
+        tpep_dropoff_datetime,
+        passenger_count,
+        trip_distance,
+        ratecodeid,
+        CASE store_and_fwd_flag
+            WHEN 'Y' THEN TRUE
+            ELSE FALSE
+        END AS store_and_fwd_flag,
+        pulocationid,
+        dolocationid,
+        payment_type,
+        fare_amount,
+        extra,
+        mta_tax,
+        tip_amount,
+        tolls_amount,
+        improvement_surcharge,
+        total_amount,
+        congestion_surcharge,
+        airport_fee
+FROM nyc_raw_fdw
+WHERE
+    tpep_pickup_datetime >= '2023-01-01' AND
+    tpep_dropoff_datetime >= '2023-01-01' AND
+    ratecodeid IN (1, 2, 3, 4, 5, 6) AND
+    payment_type IN (1, 2, 3, 4, 5, 6) AND
+    trip_distance > 0 AND
+    fare_amount > 0 AND
+    total_amount > 0;
+
+

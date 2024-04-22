@@ -149,7 +149,7 @@ def initialize_datamart(folder_path: str):
         logging.error(f"Error downloading taxi_zone_lookup.csv: {str(e)}")
         return False
 
-    # Insert data into tables
+    # Insert data into tables (wait...)
     if execute_sql_file("insertion.sql", datamart_engine):
         logging.info("Data inserted successfully.")
     else:
