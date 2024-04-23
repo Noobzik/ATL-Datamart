@@ -5,7 +5,7 @@
 click
 Sphinx
 coverage
-awscli
+boto3
 flake8
 Minio
 python-dotenv
