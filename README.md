@@ -1,27 +1,29 @@
-ATL-Datamart
+ATL-Datamart Version Python
 ==============================
 
-Projet pour le cours d'atelier Architecture décisionnel Datamart (TRDE704) pour les I1 de l'EPSI.
-Atelier de Big Data : Introduction aux pipelines de données et Architecture de donnes pour DC Paris
+Projet pour : 
+* Cours d'atelier Architecture décisionnel Datamart (TRDE704) pour les I1 de l'EPSI Paris et Arras.
 
 Le sujet est à disposition dans le dossier docs ET le sujet à jour dans votre espace learning.
 
 ## Comment utiliser ce template ?
 *  Pour le TP 1 :
     * Il faudra utiliser le fichier qui se situe à `src/data/grab_parquet.py` et compléter les fonctions qui sont vides.
-    * Remarque : Ne vous cassez pas la tête à effacer les fonctions. Sinon, vous allez augmenter exponentiellement la difficulté de réaliser ce TP
+    * Remarque : Ne vous cassez pas la tête à effacer les fonctions. Sinon, vous allez augmenter exponentiellement la difficulté de réaliser ce TP.
 *  Pour le TP 2 :
-    * Etant donnée qu'il n'existe pas d'ETL traitant les fichiers parquets visuellement. Il faudra utiliser le fichier `src/data/dump_to_sql.py`.
-    * L'implémentation actuellement permet uniquement de prendre les fichiers parquets sauvegardés en local. Vous devriez modifier le programme pour qu'il prenne les fichiers parquets que vous avez stockés dans Minio.
+    * Etant donnée qu'il n'existe pas d'ETL gratuit et/ou opensource traitant les fichiers parquets visuellement. Il faudra utiliser le fichier `src/data/dump_to_sql.py`.
+    * L'implémentation actuel permet uniquement de prendre les fichiers parquets sauvegardés en local. Vous devriez modifier le programme pour qu'il récupère les fichiers parquets que vous avez stockés dans Minio.
 *  Pour le TP 3:
     * Vous devez utiliser les requêtes SQL sur le SGBD de votre choix afin de créer les tables en modèle en Flocon. Par soucis de simplicité du sujet, vous êtes libre utiliser le SGBD de votre choix sans tenir compte des propriété OLAP.
     * Vous aurez donc un script SQL pour chaque tâche distinct :
       * `creation.sql` pour la création des tables en flocons avec les contraintes associés.
-      * `insertion.sql` pour insérer les données depuis votre base de donnée `Data Warehouse` vers votre base de donnée `Data Mart`
+      * `insertion.sql` pour insérer les données depuis votre base de donnée `Data Warehouse` vers votre base de donnée `Data Mart`.
+         * Remarque : C'est bien **DEUX SERVEURS SGBD** distinct **ET NON DEUX BASES DE DONNEES** !
 *   Pour le TP 4 :
       * Lorsque vous avez fait le TP3, vous devriez normalement avoir une idée sur la restitution des données que vous souhaitez faire dans la partie Dataviz.
-        * Si ce n'est pas le cas, vous pouvez ouvrir un Notebook qui sera sauvegardé dans le dossier `notesbooks` pour réaliser votre Exploration Data Analysis (EDA).
-        * Pour les élèves de DC PARIS : Vous avez le choix entre une visualisation sous MATPLOTLIB/PLOTLY ou bien Tableau Desktop / PowerBI
+        * Si ce n'est pas le cas, vous pouvez ouvrir un Notebook qui sera sauvegardé dans le dossier `notesbooks` pour réaliser votre Analyse Exploratoire de Données (EDA).
+        * Pour les élèves de DC PARIS : Vous avez le choix entre une visualisation sous MATPLOTLIB/PLOTLY/SEABORN ou bien Tableau Desktop / PowerBI.
+        * Pour les plus chaud d'entre vous, vous pouvez concevoir un tableau de bord à l'aide de Streamlit.
       * Vous devez connecter votre outil de Data Visualisation à votre base de donnée `Data Mart` afin de produire les visualisations.
 *   Pour le TP 5 (Optionnel pour EPSI Paris):
       * Cette partie du TP vous servira d'introduction à l'orchestration des tâches d'un projet Big Data. C'est-à-dire de lancer des scripts python de manière totalement automatisée sur un interval définie.
