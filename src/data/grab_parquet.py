@@ -17,7 +17,7 @@ def grab_data() -> None:
     """
     # Base URL for NYC Yellow Taxi data files
     base_url = "https://s3.amazonaws.com/nyc-tlc/trip+data/yellow_tripdata_{year}-{month:02d}.csv"
-    down_folder = "../../data/raw"
+    down_folder = "D:\ArchiData1\ATL-Datamart\data\raw"
     os.makedirs(down_folder, exist_ok=True)  # Ensure download folder exists
 
     # Start with recent data and move backward
