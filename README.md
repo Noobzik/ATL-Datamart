@@ -25,7 +25,7 @@ Le sujet est à disposition dans le dossier docs ET le sujet à jour dans votre 
         * Pour les élèves de DC PARIS : Vous avez le choix entre une visualisation sous MATPLOTLIB/PLOTLY/SEABORN ou bien Tableau Desktop / PowerBI.
         * Pour les plus chaud d'entre vous, vous pouvez concevoir un tableau de bord à l'aide de Streamlit.
       * Vous devez connecter votre outil de Data Visualisation à votre base de donnée `Data Mart` afin de produire les visualisations.
-*   Pour le TP 5 (Optionnel pour EPSI Paris):
+*   Pour le TP 5:
       * Cette partie du TP vous servira d'introduction à l'orchestration des tâches d'un projet Big Data. C'est-à-dire de lancer des scripts python de manière totalement automatisée sur un interval définie.
       * Pour le moment, je vous demande de réaliser une dag qui permet de télécharger un parquet du dernier mois en vigueur (TP 1) et de le stocker vers Minio.
       * Une fois que vous avez compris le fonctionnement des dags, vous pouvez vous amuser à automatiser le TP 2 et 3 afin de rendre le TP 4 totalement autonome.
