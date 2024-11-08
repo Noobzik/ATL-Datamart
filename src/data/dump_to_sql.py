@@ -24,9 +24,9 @@ db_config = {
     "dbms_username": "postgres",
     "dbms_password": "admin",
     "dbms_ip": "localhost",
-    "dbms_port": "15432",
-    "dbms_database": "nyc_warehouse",
-    "dbms_table": "nyc_raw"
+    "dbms_port": "5432",
+    "dbms_database": "postgres",
+    "dbms_table": "nyc_tab"
 }
 db_config["database_url"] = (
     f"{db_config['dbms_engine']}://{db_config['dbms_username']}:{db_config['dbms_password']}@"
