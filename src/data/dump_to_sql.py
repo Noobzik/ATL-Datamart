@@ -25,7 +25,12 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     secure=False,
     access_key="minio",
     secret_key="minio123"
-)
+    )
+    bucket_name = "yellow-taxi-data"
+    file_name = obj.object_name
+    local_file_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
+    minio_client.fget_object(bucket_name, file_name, local_file_path)
+    
     db_config = {
         "dbms_engine": "postgresql",
         "dbms_username": "postgres",
@@ -68,7 +73,7 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
     return dataframe
 
 
-def main() -> None:
+def main() -> None: 
     # folder_path: str = r'..\..\data\raw'
     script_dir = os.path.dirname(os.path.abspath(__file__))
     # Construct the relative path to the folder
