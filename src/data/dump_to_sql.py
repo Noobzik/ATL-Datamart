@@ -28,7 +28,7 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     )
     bucket_name = "yellow-taxi-data"
     file_name = obj.object_name
-    local_file_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
+    local_file_path = "D:\ArchiData1\ATL-Datamart\data\raw"
     minio_client.fget_object(bucket_name, file_name, local_file_path)
     
     db_config = {
