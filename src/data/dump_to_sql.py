@@ -17,6 +17,15 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         - bool : True if the connection to the DBMS and the dump to the DBMS is successful, False if either
         execution is failed
     """
+
+
+    # Configuration MinIO
+    minio_client = Minio(
+    "127.0.0.1:9000",
+    secure=False,
+    access_key="minio",
+    secret_key="minio123"
+)
     db_config = {
         "dbms_engine": "postgresql",
         "dbms_username": "postgres",
