@@ -7,6 +7,24 @@ Projet pour :
 Le sujet est à disposition dans le dossier docs ET le sujet à jour dans votre espace learning.
 
 ## Comment utiliser ce template ?
+
+### Gérer l'infrastructure
+Vous n'avez pas besoin d'installer l'ensemble de l'architecture sur votre PC. L'intégralité de l'architecture (à l'exception des dépendances développement) est géré par le fichier de configuration `docker-compose.yml`
+
+* Pour lancer l'infrastructure
+```sh
+docker compose up
+```
+* Pour stopper l'infrastrucutre
+```sh
+docker compose down
+```
+
+**Remarque Linux** :
+- En cas de problème avec le daemon de docker, c'est parceque vous avez deux docker d'installé sur votre machine (Docker Desktop et Docker Engine via CLI). Seule la version Engine sera actif, et donc uniquement accessible via `sudo`. Si vous avez le besoin de gérer visuellement les containers, je vous invite à utiliser [portainer](https://docs.portainer.io/start/install-ce/server
+
+### Description détaillé du sujet
+
 *  Pour le TP 1 :
     * Il faudra utiliser le fichier qui se situe à `src/data/grab_parquet.py` et compléter les fonctions qui sont vides.
     * Remarque : Ne vous cassez pas la tête à effacer les fonctions. Sinon, vous allez augmenter exponentiellement la difficulté de réaliser ce TP.
