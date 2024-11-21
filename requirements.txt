@@ -14,4 +14,4 @@ pandas
 sqlalchemy
 setuptools
 pyarrow
-psycopg2
+psycopg2-binary
