@@ -7,7 +7,7 @@ import urllib.request
 import ssl
 import os
 import gc
-import psycopg2 
+#import psycopg2 
 
 # Configuration pour Minio et PostgreSQL
 minio_client = Minio(
