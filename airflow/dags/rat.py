@@ -84,7 +84,7 @@ with DAG(
     "download_and_store_last_month_taxi_data",
     default_args=default_args,
     description="Télécharge le fichier Parquet du dernier mois et le stocke dans MinIO",
-    schedule_interval="@monthly",  # Exécution automatique chaque mois
+    schedule="@monthly",  # Exécution automatique chaque mois
     start_date=datetime(2023, 1, 1),
     catchup=False,
 ) as dag:
