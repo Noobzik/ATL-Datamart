@@ -92,7 +92,6 @@ with DAG(
     process_data_task = PythonOperator(
         task_id="process_last_month_data",
         python_callable=process_last_month_data,
-        provide_context=True,
     )
 
     process_data_task
