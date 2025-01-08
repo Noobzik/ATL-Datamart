@@ -1,0 +1,2 @@
+checks for nyc_tab:
+  - missing_count(vendorid) = 0

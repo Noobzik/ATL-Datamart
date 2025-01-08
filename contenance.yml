@@ -1,0 +1,8 @@
+checks for nyc_tab:
+    - row_count > 0
+checks for location:
+    - row_count > 0
+checks for vendors:
+    - row_count > 0
+checks for nyc_tab_organised:
+    - row_count > 0

@@ -1,0 +1,14 @@
+data_source postgres:
+  type: postgres
+  connection:
+    host: localhost
+    port: 5432
+    username: postgres
+    password: admin
+  database: postgres
+  schema: public
+
+soda_cloud:
+  host: cloud.soda.io
+  api_key_id: 1800773f-806f-4f36-a3b9-9bf6e06d1492
+  api_key_secret: eEbrSNDRWze0GsXcKsbjJujiaport7Zgx0V6AyM9U7YSLsOlGBH9WA

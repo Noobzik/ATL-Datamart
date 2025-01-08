@@ -1,0 +1,4 @@
+ checks for payment_type:
+   - row_count:
+       warn: when > 90
+       fail: when = 0

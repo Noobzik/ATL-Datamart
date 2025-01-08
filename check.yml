@@ -1,0 +1,6 @@
+checks for nyc_tab:
+    - schema:
+        warn:
+          when required column missing: [ airport_fee, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance ]
+        fail:
+          when forbidden column present: [ another_column ]
