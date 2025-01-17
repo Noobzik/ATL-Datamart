@@ -7,12 +7,32 @@ Projet pour :
 Le sujet est à disposition dans le dossier docs ET le sujet à jour dans votre espace learning.
 
 ## Comment utiliser ce template ?
+
+### Gérer l'infrastructure
+Vous n'avez pas besoin d'installer l'ensemble de l'architecture sur votre PC. L'intégralité de l'architecture (à l'exception des dépendances développement) est géré par le fichier de configuration `docker-compose.yml`
+
+* Pour lancer l'infrastructure
+```sh
+docker compose up
+```
+* Pour stopper l'infrastrucutre
+```sh
+docker compose down
+```
+
+**Remarque Linux** :
+- En cas de problème avec le daemon de docker, c'est parceque vous avez deux docker d'installé sur votre machine (Docker Desktop et Docker Engine via CLI). Seule la version Engine sera actif, et donc uniquement accessible via `sudo`. Si vous avez le besoin de gérer visuellement les containers, je vous invite à utiliser [portainer](https://docs.portainer.io/start/install-ce/server
+
+### Description détaillé du sujet
+
 *  Pour le TP 1 :
     * Il faudra utiliser le fichier qui se situe à `src/data/grab_parquet.py` et compléter les fonctions qui sont vides.
     * Remarque : Ne vous cassez pas la tête à effacer les fonctions. Sinon, vous allez augmenter exponentiellement la difficulté de réaliser ce TP.
-*  Pour le TP 2 :
-    * Etant donnée qu'il n'existe pas d'ETL gratuit et/ou opensource traitant les fichiers parquets visuellement. Il faudra utiliser le fichier `src/data/dump_to_sql.py`.
-    * L'implémentation actuel permet uniquement de prendre les fichiers parquets sauvegardés en local. Vous devriez modifier le programme pour qu'il récupère les fichiers parquets que vous avez stockés dans Minio.
+*  Pour le TP 2 : Il existe deux approches :
+    Le but de ce TP est de récupérer les fichiers parquets stockés dans votre datalake (qui est Minio) pour le stocker en l'état brute, vers le Data Warehouse (ici postgres par défaut)
+    * Soit vous utilisez [Amphi.AI](https://amphi.ai/), qui est un ETL opensource ouvert (Difficulté élevé) (***SVP Faites moi un retour régulier pour l'améliorer !***)
+    * Soit vous adaptez le code situé dans `src/data/dump_to_sql.py`. La version actuelle récupère les fichiers stockés en local et déverse les données dans le Data Warehouse sans les optimisations d'injection. Votre but ici sera d'adapter le code pour récupérer depuis le datalake Minio, et d'optimiser la vitesse de l'injection des données.
+       * **Remarque** : L'implémentation actuel permet uniquement de prendre les fichiers parquets sauvegardés en local. Vous devriez modifier le programme pour qu'il récupère les fichiers parquets que vous avez stockés dans Minio.
 *  Pour le TP 3:
     * Vous devez utiliser les requêtes SQL sur le SGBD de votre choix afin de créer les tables en modèle en Flocon. Par soucis de simplicité du sujet, vous êtes libre utiliser le SGBD de votre choix sans tenir compte des propriété OLAP.
     * Vous aurez donc un script SQL pour chaque tâche distinct :
@@ -23,7 +43,7 @@ Le sujet est à disposition dans le dossier docs ET le sujet à jour dans votre 
       * Lorsque vous avez fait le TP3, vous devriez normalement avoir une idée sur la restitution des données que vous souhaitez faire dans la partie Dataviz.
         * Si ce n'est pas le cas, vous pouvez ouvrir un Notebook qui sera sauvegardé dans le dossier `notesbooks` pour réaliser votre Analyse Exploratoire de Données (EDA).
         * Pour les élèves de DC PARIS : Vous avez le choix entre une visualisation sous MATPLOTLIB/PLOTLY/SEABORN ou bien Tableau Desktop / PowerBI.
-        * Pour les plus chaud d'entre vous, vous pouvez concevoir un tableau de bord à l'aide de Streamlit.
+        * Pour les plus chaud d'entre vous, vous pouvez concevoir un tableau de bord à l'aide de [Streamlit](https://streamlit.io/), vous y trouverez des exemples dans la section Gallery.
       * Vous devez connecter votre outil de Data Visualisation à votre base de donnée `Data Mart` afin de produire les visualisations.
 *   Pour le TP 5:
       * Cette partie du TP vous servira d'introduction à l'orchestration des tâches d'un projet Big Data. C'est-à-dire de lancer des scripts python de manière totalement automatisée sur un interval définie.
