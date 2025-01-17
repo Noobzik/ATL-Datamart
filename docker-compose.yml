@@ -69,6 +69,18 @@ services:
       - spark_network
     volumes:
     - pgdata:/var/lib/postgresql/data
+  db-datamart:
+    image: postgres:latest
+    restart: always
+    ports:
+      - "15435:5432"  # Port exposé pour accéder au Data Mart
+    environment:
+      POSTGRES_USERNAME: admin
+      POSTGRES_PASSWORD: admin
+    networks:
+      - spark_network
+    volumes:
+      - pgdata-datamart:/var/lib/postgresql/data
 
   postgres-airflow:
     image: postgres:13
@@ -298,4 +310,4 @@ networks:
 volumes:
   pgdata:
   postgres-db-volume:
- 
+  pgdata-datamart:
