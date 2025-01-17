@@ -1,0 +1,15 @@
+checks for nyc_raw:
+  # Vérification du schéma des colonnes
+  - schema:
+      warn:
+        when required column missing: [vendorid, tpep_pickup_datetime, tpep_dropoff_datetime, passenger_count, trip_distance, ratecodeid, payment_type, fare_amount, pulocationid, dolocationid]
+      fail:
+        when forbidden column present: [unexpected_column1, unexpected_column2]
+
+
+
+#checks for nyc_raw:
+#  - row_count:
+#      warn: when > 90
+#      fail: when = 0
+
