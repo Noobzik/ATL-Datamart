@@ -1,0 +1,9 @@
+data_source nyc_warehouse:
+  type: postgres
+  connection:
+    host: localhost
+    port: 15432
+    username: postgres
+    password: admin
+  database: nyc_warehouse
+  schema: public
