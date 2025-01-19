@@ -87,3 +87,6 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
+# Ignorer les fichiers de logs
+airflow/logs/
