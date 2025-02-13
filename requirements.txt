@@ -1,0 +1,18 @@
+# local package
+-e .
+
+# external requirements
+click
+Sphinx
+coverage
+boto3
+flake8
+Minio
+python-dotenv
+pendulum
+pandas
+sqlalchemy
+setuptools
+pyarrow
+psycopg2
+psycopg2-binary
