@@ -57,8 +57,9 @@ services:
       - MINIO_ROOT_PASSWORD=minio123
     networks:
       - spark_network
+
   data-warehouse:
-    image: postgres:latest
+    image: postgres:17.2-alpine
     restart: always
     ports:
       - "15432:5432"
@@ -71,7 +72,7 @@ services:
     - pgdatawarehouse:/var/lib/postgresql/data
 
   data-mart:
-    image: postgres:latest
+    image: postgres:17.2-alpine
     restart: always
     ports:
       - "15435:5432"
@@ -82,7 +83,7 @@ services:
       - spark_network
     volumes:
     - pgdatamart:/var/lib/postgresql/data
-    
+
   postgres-airflow:
     image: postgres:13
     environment:
@@ -300,9 +301,6 @@ services:
       networks:
         - spark_network
 
-
-
-
 networks:
   spark_network:
     driver: bridge
@@ -312,4 +310,3 @@ volumes:
   pgdatamart:
   pgdatawarehouse:
   postgres-db-volume:
- 
