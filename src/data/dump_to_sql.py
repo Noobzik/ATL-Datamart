@@ -1,22 +1,31 @@
 import gc
 import os
 import sys
+import tempfile
+import time
+from contextlib import contextmanager
 
 import pandas as pd
 from sqlalchemy import create_engine
+from minio import Minio
+from minio.error import S3Error
 
+@contextmanager
+def secure_tempfile(suffix=None):
+    """Gestion robuste des fichiers temporaires"""
+    temp_path = tempfile.mktemp(suffix=suffix)
+    try:
+        yield temp_path
+    finally:
+        if os.path.exists(temp_path):
+            for _ in range(3):
+                try:
+                    os.remove(temp_path)
+                    break
+                except PermissionError:
+                    time.sleep(0.1)
 
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
-    """
-    Dumps a Dataframe to the DBMS engine
-
-    Parameters:
-        - dataframe (pd.Dataframe) : The dataframe to dump into the DBMS engine
-
-    Returns:
-        - bool : True if the connection to the DBMS and the dump to the DBMS is successful, False if either
-        execution is failed
-    """
     db_config = {
         "dbms_engine": "postgresql",
         "dbms_username": "postgres",
@@ -31,55 +40,95 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         f"{db_config['dbms_engine']}://{db_config['dbms_username']}:{db_config['dbms_password']}@"
         f"{db_config['dbms_ip']}:{db_config['dbms_port']}/{db_config['dbms_database']}"
     )
+
+    engine = None
     try:
         engine = create_engine(db_config["database_url"])
         with engine.connect():
-            success: bool = True
-            print("Connection successful! Processing parquet file")
-            dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
-
+            print("✅ Connexion à PostgreSQL réussie.")
+            dataframe.to_sql(
+                db_config["dbms_table"],
+                engine,
+                index=False,
+                if_exists='append',
+                chunksize=10000
+            )
+            return True
     except Exception as e:
-        success: bool = False
-        print(f"Error connection to the database: {e}")
-        return success
-
-    return success
-
+        print(f"❌ Erreur de connexion ou d'insertion : {e}")
+        return False
+    finally:
+        if engine:
+            engine.dispose()
 
 def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """
-    Take a Dataframe and rewrite it columns into a lowercase format.
-    Parameters:
-        - dataframe (pd.DataFrame) : The dataframe columns to change
-
-    Returns:
-        - pd.Dataframe : The changed Dataframe into lowercase format
-    """
     dataframe.columns = map(str.lower, dataframe.columns)
     return dataframe
 
+def process_parquet_file(minio_client, bucket_name, obj):
+    """Traite un fichier Parquet individuel"""
+    print(f"📥 Téléchargement de {obj.object_name} depuis MinIO...")
+    
+    with secure_tempfile(suffix=".parquet") as temp_file_path:
+        try:
+            # Téléchargement
+            minio_client.fget_object(bucket_name, obj.object_name, temp_file_path)
+            
+            # Lecture du fichier Parquet
+            try:
+                parquet_df = pd.read_parquet(temp_file_path, engine='pyarrow')
+                clean_column_name(parquet_df)
+                
+                if not write_data_postgres(parquet_df):
+                    print(f"⚠️ Échec insertion pour {obj.object_name}")
+                    return False
+                
+                del parquet_df
+                gc.collect()
+                return True
+                
+            except Exception as e:
+                print(f"❌ Erreur lecture Parquet {obj.object_name}: {e}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Erreur traitement {obj.object_name}: {e}")
+            return False
 
 def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
-    folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
+    minio_client = Minio(
+        "localhost:9000",
+        access_key="minio",
+        secret_key="minio123",
+        secure=False
+    )
 
-    parquet_files = [f for f in os.listdir(folder_path) if
-                     f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
+    bucket_name = "nyc-taxi"
+    success_count = 0
+    error_count = 0
 
-    for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
-
-        clean_column_name(parquet_df)
-        if not write_data_postgres(parquet_df):
-            del parquet_df
-            gc.collect()
-            return
-
-        del parquet_df
-        gc.collect()
-
+    try:
+        objects = list(minio_client.list_objects(bucket_name, recursive=True))
+        parquet_files = [obj for obj in objects if obj.object_name.endswith(".parquet")]
+        total_files = len(parquet_files)
+        print(f"🔍 {total_files} fichiers Parquet à traiter...")
+        
+        for i, obj in enumerate(parquet_files, 1):
+            print(f"\n📂 Fichier {i}/{total_files}: {obj.object_name}")
+            if process_parquet_file(minio_client, bucket_name, obj):
+                success_count += 1
+            else:
+                error_count += 1
+                
+    except S3Error as e:
+        print(f"❌ Erreur MinIO: {e}")
+        error_count += 1
+    except Exception as e:
+        print(f"❌ Erreur inattendue: {e}")
+        error_count += 1
+    finally:
+        print(f"\n✅ {success_count} fichiers traités avec succès")
+        print(f"❌ {error_count} fichiers en échec")
 
 if __name__ == '__main__':
     sys.exit(main())
