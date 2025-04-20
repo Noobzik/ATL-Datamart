@@ -4,6 +4,8 @@ import sys
 
 import pandas as pd
 from sqlalchemy import create_engine
+from minio import Minio
+from io import BytesIO
 
 
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
