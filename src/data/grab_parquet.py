@@ -26,7 +26,7 @@ def grab_data() -> None:
     """
     year = 2024
     month = 12
-    url = f"https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{year}-{month}.parquet" # fonctionne jusqu'a 2024-12, voir données dispo ici : https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+    url = f"https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{year}-{month if month >= 10 else "0" + str(month)}.parquet" # fonctionne jusqu'a 2024-12, voir données dispo ici : https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
     response = requests.get(url)
     with open(f'./data/raw/yellow_tripdata_{year}-{month}.parquet', 'wb') as file:
         file.write(response.content)
@@ -41,7 +41,8 @@ def grab_all_data() -> None:
     """
     for year in range(2009,2025):
         for month in range(1,13):
-            url = f"https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{year}-{month}.parquet"
+            url = f"https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{year}-{month if month >= 10 else "0" + str(month)}.parquet"
+            print(url)
             response = requests.get(url)
             with open(f'./data/raw/yellow_tripdata_{year}-{month}.parquet', 'wb') as file:
                 file.write(response.content)
@@ -86,7 +87,7 @@ def write_all_data_minio():
         print("Bucket " + bucket + " existe déjà")
     for year in range(2009,2025):
         for month in range(1,13):
-            client.fput_object(bucket, f"yellow_tripdata_{year}-{month}.parquet", f"./data/raw/yellow_tripdata_{year}-{month}.parquet")
+            client.fput_object(bucket, f"yellow_tripdata_{year}-{month if month >= 10 else "0" + str(month)}.parquet", f"./data/raw/yellow_tripdata_{year}-{month if month >= 10 else "0" + str(month)}.parquet")
 
 if __name__ == '__main__':
     sys.exit(main())
