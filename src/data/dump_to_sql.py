@@ -21,7 +21,7 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     """
     db_config = {
         "dbms_engine": "postgresql",
-        "dbms_username": "postgres",
+        "dbms_username": "admin",
         "dbms_password": "admin",
         "dbms_ip": "localhost",
         "dbms_port": "15432",
