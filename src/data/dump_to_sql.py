@@ -60,16 +60,20 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
-    folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
-
-    parquet_files = [f for f in os.listdir(folder_path) if
-                     f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
-
-    for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
+    client = Minio(
+        "localhost:9000",
+        secure=False,
+        access_key="minio",
+        secret_key="minio123"
+    )
+    bucket_name = "bucket"
+    parquet_files = [
+        obj.object_name for obj in client.list_objects(bucket_name, recursive=True)
+        if obj.object_name.endswith(".parquet")
+    ]
+    for parquet_file_name in parquet_files:
+        data = client.get_object(bucket_name, parquet_file_name)
+        parquet_df: pd.DataFrame = pd.read_parquet(BytesIO(data.read()))
 
         clean_column_name(parquet_df)
         if not write_data_postgres(parquet_df):
