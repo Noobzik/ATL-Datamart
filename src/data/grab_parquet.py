@@ -42,7 +42,6 @@ def grab_all_data() -> None:
     for year in range(2009,2025):
         for month in range(1,13):
             url = f"https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{year}-{month if month >= 10 else "0" + str(month)}.parquet"
-            print(url)
             response = requests.get(url)
             with open(f'./data/raw/yellow_tripdata_{year}-{month}.parquet', 'wb') as file:
                 file.write(response.content)
