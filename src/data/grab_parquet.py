@@ -28,7 +28,7 @@ def grab_data() -> None:
     month = 12
     url = f"https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{year}-{month if month >= 10 else "0" + str(month)}.parquet" # fonctionne jusqu'a 2024-12, voir données dispo ici : https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
     response = requests.get(url)
-    with open(f'./data/raw/yellow_tripdata_{year}-{month}.parquet', 'wb') as file:
+    with open(f'./data/raw/yellow_tripdata_{year}-{month if month >= 10 else "0" + str(month)}.parquet', 'wb') as file:
         file.write(response.content)
 
 def grab_all_data() -> None:
