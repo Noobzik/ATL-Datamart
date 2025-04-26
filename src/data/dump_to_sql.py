@@ -1,22 +1,23 @@
 import gc
-import os
+import io
 import sys
 
 import pandas as pd
 from sqlalchemy import create_engine
+from minio import Minio
+from minio.error import S3Error
+
+
+def get_minio_client():
+    return Minio(
+        "localhost:9000",
+        access_key="minio",
+        secret_key="minio123",
+        secure=False
+    )
 
 
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
-    """
-    Dumps a Dataframe to the DBMS engine
-
-    Parameters:
-        - dataframe (pd.Dataframe) : The dataframe to dump into the DBMS engine
-
-    Returns:
-        - bool : True if the connection to the DBMS and the dump to the DBMS is successful, False if either
-        execution is failed
-    """
     db_config = {
         "dbms_engine": "postgresql",
         "dbms_username": "postgres",
@@ -34,51 +35,44 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     try:
         engine = create_engine(db_config["database_url"])
         with engine.connect():
-            success: bool = True
-            print("Connection successful! Processing parquet file")
+            print("✅ Connexion à PostgreSQL réussie !")
             dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
-
+            return True
     except Exception as e:
-        success: bool = False
-        print(f"Error connection to the database: {e}")
-        return success
-
-    return success
+        print(f"❌ Erreur de connexion ou d’insertion PostgreSQL : {e}")
+        return False
 
 
 def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """
-    Take a Dataframe and rewrite it columns into a lowercase format.
-    Parameters:
-        - dataframe (pd.DataFrame) : The dataframe columns to change
-
-    Returns:
-        - pd.Dataframe : The changed Dataframe into lowercase format
-    """
     dataframe.columns = map(str.lower, dataframe.columns)
     return dataframe
 
 
-def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
-    folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
+def main():
+    bucket = "nyc-yellow-taxi"
+    client = get_minio_client()
 
-    parquet_files = [f for f in os.listdir(folder_path) if
-                     f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
+    try:
+        objects = client.list_objects(bucket)
+        for obj in objects:
+            if obj.object_name.endswith(".parquet"):
+                print(f"📦 Lecture de {obj.object_name} depuis Minio...")
 
-    for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
+                response = client.get_object(bucket, obj.object_name)
+                data = response.read()  # Lire tout en mémoire
+                df = pd.read_parquet(io.BytesIO(data))
 
-        clean_column_name(parquet_df)
-        if not write_data_postgres(parquet_df):
-            del parquet_df
-            gc.collect()
-            return
+                clean_column_name(df)
 
-        del parquet_df
-        gc.collect()
+                if not write_data_postgres(df):
+                    del df
+                    gc.collect()
+                    return
+
+                del df
+                gc.collect()
+    except S3Error as e:
+        print(f"❌ Erreur Minio : {e}")
 
 
 if __name__ == '__main__':
