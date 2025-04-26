@@ -2,18 +2,18 @@
 -- Modèle en étoile optimisé pour l'analyse des courses de taxi
 -- Base: nyc_datamart (SGBD distinct sur port 15435)
 
--- =============================================
+ 
 -- PARTIE 1 : NETTOYAGE INITIAL (IDEMPOTENT)
--- =============================================
+ 
 DROP TABLE IF EXISTS fact_trips CASCADE;
 DROP TABLE IF EXISTS dim_time CASCADE;
 DROP TABLE IF EXISTS dim_location CASCADE;
 DROP TABLE IF EXISTS dim_payment CASCADE;
 DROP TABLE IF EXISTS dim_vendor CASCADE;
 
--- =============================================
+ 
 -- PARTIE 2 : DIMENSIONS (AMÉLIORÉES)
--- =============================================
+ 
 
 -- 1. DIMENSION TEMPS (Optimisée pour le filtrage temporel)
 CREATE TABLE dim_time (
@@ -64,9 +64,9 @@ CREATE TABLE dim_vendor (
     valid_to DATE DEFAULT NULL
 );
 
--- =============================================
+ 
 -- PARTIE 3 : TABLE DE FAITS (OPTIMISÉE)
--- =============================================
+ 
 CREATE TABLE fact_trips (
     trip_id BIGINT PRIMARY KEY,
     time_id INTEGER REFERENCES dim_time(time_id) NOT NULL,
@@ -83,9 +83,9 @@ CREATE TABLE fact_trips (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- =============================================
+ 
 -- PARTIE 4 : OPTIMISATIONS (INDEX, COMMENTS)
--- =============================================
+ 
 
 -- Index pour les requêtes analytiques
 CREATE INDEX idx_fact_trips_time ON fact_trips(time_id);
@@ -103,9 +103,9 @@ COMMENT ON TABLE fact_trips IS 'Table de fait principale pour l''analyse des cou
 COMMENT ON COLUMN fact_trips.congestion_surcharge IS 'Surcharge de congestion imposée par la ville de NYC';
 COMMENT ON COLUMN dim_zone.name IS 'Nom officiel de la zone de taxi (NYC TLC)';
 
--- =============================================
+ 
 -- PARTIE 5 : VUES MATÉRIALISÉES (OPTIONNELLES)
--- =============================================
+ 
 CREATE MATERIALIZED VIEW mv_daily_revenue AS
 SELECT 
     t.pickup_date,

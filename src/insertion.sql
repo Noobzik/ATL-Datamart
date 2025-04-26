@@ -1,11 +1,6 @@
--- Script d'insertion complet pour Datamart (TP3)
--- Transfert inter-serveurs : NYC Docker (5432) -> nyc_datamart (15433)
 
 BEGIN;
 
--- =============================================
--- PARTIE 1 : CONFIGURATION FDW (à exécuter une fois)
--- =============================================
 
 -- 1. Création de l'extension FDW
 CREATE EXTENSION IF NOT EXISTS postgres_fdw;
@@ -57,9 +52,9 @@ OPTIONS (
     updatable 'false'
 );
 
--- =============================================
--- PARTIE 2 : PRÉPARATION DES DONNÉES
--- =============================================
+
+-- PARTIE PRÉPARATION DES DONNÉES
+
 
 -- Table temporaire pour le mapping des zones (265 zones officielles NYC TLC)
 CREATE TEMPORARY TABLE temp_zone_mapping (
@@ -73,9 +68,8 @@ COPY temp_zone_mapping(location_id, zone_name, borough_name)
 FROM PROGRAM 'curl -s "https://d37ci6vzurychx.cloudfront.net/misc/taxi+_zone_lookup.csv" | cut -d, -f1,3,2'
 WITH (FORMAT csv, HEADER true);
 
--- =============================================
+
 -- PARTIE 3 : INSERTION DES DIMENSIONS
--- =============================================
 
 -- 1. DIMENSION BOROUGH
 INSERT INTO dim_borough (name)
@@ -155,9 +149,8 @@ WHERE EXISTS (SELECT 1 FROM dim_zone WHERE zone_id = r.pulocationid)
   AND EXISTS (SELECT 1 FROM dim_zone WHERE zone_id = r.dolocationid)
 ON CONFLICT (pickup_zone_id, dropoff_zone_id, distance_miles) DO NOTHING;
 
--- =============================================
+
 -- PARTIE 4 : INSERTION DES FAITS
--- =============================================
 
 INSERT INTO fact_trips (
     trip_id, time_id, location_id, payment_id, vendor_id,
