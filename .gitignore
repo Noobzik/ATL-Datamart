@@ -90,3 +90,6 @@ target/
 
 # Minio
 minio/
+
+airflow/logs/
+
