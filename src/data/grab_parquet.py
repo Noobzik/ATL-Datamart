@@ -60,7 +60,7 @@ def write_data_minio():
         access_key="minio",
         secret_key="minio123"
     )
-    bucket: str = "nyc-taxi-data"  # Choisissez un nom de bucket
+    bucket: str = "nyc-taxi-data" 
     found = client.bucket_exists(bucket)
     if not found:
         client.make_bucket(bucket)
@@ -73,7 +73,7 @@ def write_data_minio():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     raw_data_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
     
-    # Uploader chaque fichier parquet
+    # Uploader de fichier vers Minio
     for file_name in os.listdir(raw_data_path):
         if file_name.endswith(".parquet"):
             file_path = os.path.join(raw_data_path, file_name)
