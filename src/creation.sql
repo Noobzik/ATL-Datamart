@@ -2,18 +2,17 @@
 -- Modèle en étoile optimisé pour l'analyse des courses de taxi
 -- Base: nyc_datamart (SGBD distinct sur port 15435)
 
- 
 -- PARTIE 1 : NETTOYAGE INITIAL (IDEMPOTENT)
- 
+
 DROP TABLE IF EXISTS fact_trips CASCADE;
 DROP TABLE IF EXISTS dim_time CASCADE;
 DROP TABLE IF EXISTS dim_location CASCADE;
 DROP TABLE IF EXISTS dim_payment CASCADE;
 DROP TABLE IF EXISTS dim_vendor CASCADE;
+DROP TABLE IF EXISTS dim_zone CASCADE;
+DROP TABLE IF EXISTS dim_borough CASCADE;
 
- 
 -- PARTIE 2 : DIMENSIONS (AMÉLIORÉES)
- 
 
 -- 1. DIMENSION TEMPS (Optimisée pour le filtrage temporel)
 CREATE TABLE dim_time (
@@ -25,7 +24,8 @@ CREATE TABLE dim_time (
     day_of_week VARCHAR(9) NOT NULL CHECK (day_of_week IN ('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')),
     is_weekend BOOLEAN NOT NULL,
     quarter INTEGER NOT NULL CHECK (quarter BETWEEN 1 AND 4),
-    year INTEGER NOT NULL
+    year INTEGER NOT NULL,
+    CONSTRAINT uq_pickup_datetime UNIQUE (pickup_datetime)
 );
 
 -- 2. DIMENSION LOCALISATION (Normalisée)
@@ -45,7 +45,8 @@ CREATE TABLE dim_location (
     location_id SERIAL PRIMARY KEY,
     pickup_zone_id INTEGER REFERENCES dim_zone(zone_id) NOT NULL,
     dropoff_zone_id INTEGER REFERENCES dim_zone(zone_id) NOT NULL,
-    distance_miles DECIMAL(8,2) NOT NULL CHECK (distance_miles >= 0)
+    distance_miles DECIMAL(8,2) NOT NULL CHECK (distance_miles >= 0),
+    CONSTRAINT uq_location_combo UNIQUE (pickup_zone_id, dropoff_zone_id, distance_miles)
 );
 
 -- 3. DIMENSION PAIEMENT (Avec valeurs standardisées)
@@ -64,11 +65,10 @@ CREATE TABLE dim_vendor (
     valid_to DATE DEFAULT NULL
 );
 
- 
 -- PARTIE 3 : TABLE DE FAITS (OPTIMISÉE)
- 
+
 CREATE TABLE fact_trips (
-    trip_id BIGINT PRIMARY KEY,
+    trip_id UUID PRIMARY KEY,
     time_id INTEGER REFERENCES dim_time(time_id) NOT NULL,
     location_id INTEGER REFERENCES dim_location(location_id) NOT NULL,
     payment_id INTEGER REFERENCES dim_payment(payment_id) NOT NULL,
@@ -83,9 +83,7 @@ CREATE TABLE fact_trips (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
- 
 -- PARTIE 4 : OPTIMISATIONS (INDEX, COMMENTS)
- 
 
 -- Index pour les requêtes analytiques
 CREATE INDEX idx_fact_trips_time ON fact_trips(time_id);
@@ -103,9 +101,8 @@ COMMENT ON TABLE fact_trips IS 'Table de fait principale pour l''analyse des cou
 COMMENT ON COLUMN fact_trips.congestion_surcharge IS 'Surcharge de congestion imposée par la ville de NYC';
 COMMENT ON COLUMN dim_zone.name IS 'Nom officiel de la zone de taxi (NYC TLC)';
 
- 
 -- PARTIE 5 : VUES MATÉRIALISÉES (OPTIONNELLES)
- 
+
 CREATE MATERIALIZED VIEW mv_daily_revenue AS
 SELECT 
     t.pickup_date,
