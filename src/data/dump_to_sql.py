@@ -31,8 +31,7 @@ def download_parquet_from_minio(bucket_name, object_name):
         df = pd.read_parquet(io.BytesIO(data), engine='pyarrow')
         print(f"Fichier {object_name} téléchargé avec succès, {len(df)} lignes")
         # return 100000 lignes pour le test
-        # TODO : remove this line FOR the SUBMITION
-        return df.head(100000)
+        return df
     except Exception as e:
         print(f"Erreur lors du téléchargement de {object_name}: {e}")
         return None
