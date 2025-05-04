@@ -1,10 +1,54 @@
 import gc
 import os
 import sys
-
+import io
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from minio import Minio
+from minio.error import S3Error
 
+def list_parquet_files_from_minio(bucket_name):
+    """
+    Liste tous les fichiers parquet dans le bucket spécifié
+    """
+    client = Minio("localhost:9000",
+        secure=False,
+        access_key="minio",
+        secret_key="minio123",
+    )
+    try:
+        objects = client.list_objects(bucket_name, recursive=True)
+        return [obj.object_name for obj in objects if obj.object_name.endswith('.parquet')]
+    except Exception as e:
+        print(f"Erreur lors de la liste des objets dans le bucket {bucket_name}: {e}")
+        return []
+
+
+
+def download_parquet_from_minio(bucket_name, object_name):
+    """
+    Télécharge un fichier parquet depuis Minio et le retourne comme un DataFrame
+    """
+    client = Minio("localhost:9000",
+        secure=False,
+        access_key="minio",
+        secret_key="minio123",
+    )
+    try:
+        response = client.get_object(bucket_name, object_name)
+        data = response.read()
+        df = pd.read_parquet(io.BytesIO(data), engine='pyarrow')
+        print(f"Fichier {object_name} téléchargé avec succès, {len(df)} lignes")
+        # return 100000 lignes pour le test
+        # TODO : remove this line FOR the SUBMITION
+        return df.head(6000)
+    except Exception as e:
+        print(f"Erreur lors du téléchargement de {object_name}: {e}")
+        return None
+    finally:
+        if 'response' in locals():
+            response.close()
+            response.release_conn()
 
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     """
@@ -18,14 +62,14 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         execution is failed
     """
     db_config = {
-        "dbms_engine": "postgresql",
-        "dbms_username": "postgres",
-        "dbms_password": "admin",
-        "dbms_ip": "localhost",
-        "dbms_port": "15432",
-        "dbms_database": "nyc_warehouse",
-        "dbms_table": "nyc_raw"
-    }
+    "dbms_engine": "postgresql",
+    "dbms_username": "postgres",
+    "dbms_password": "admin",
+    "dbms_ip": "localhost",
+    "dbms_port": "15432",
+    "dbms_database": "warehouse_db",
+    "dbms_table": "nyc_raw"
+}
 
     db_config["database_url"] = (
         f"{db_config['dbms_engine']}://{db_config['dbms_username']}:{db_config['dbms_password']}@"
@@ -33,18 +77,16 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     )
     try:
         engine = create_engine(db_config["database_url"])
-        with engine.connect():
+        with engine.connect() as conn:
             success: bool = True
             print("Connection successful! Processing parquet file")
             dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+            return success
 
     except Exception as e:
         success: bool = False
         print(f"Error connection to the database: {e}")
         return success
-
-    return success
-
 
 def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
     """
@@ -60,26 +102,38 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
-    folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
-
-    parquet_files = [f for f in os.listdir(folder_path) if
-                     f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
-
+    bucket_name = "ny.taxis"  # Remplacez par le nom de votre bucket
+    
+    # Lister tous les fichiers parquet dans le bucket
+    parquet_files = list_parquet_files_from_minio(bucket_name)
+    
+    if not parquet_files:
+        print(f"Aucun fichier parquet trouvé dans le bucket {bucket_name}")
+        return
+    
     for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
-
+        print(f"Traitement du fichier: {parquet_file}")
+        
+        # Télécharger le fichier depuis Minio et le charger en DataFrame
+        parquet_df = download_parquet_from_minio(bucket_name, parquet_file)
+        
+        if parquet_df is None:
+            print(f"Impossible de traiter {parquet_file}, passage au fichier suivant")
+            continue
+        
+        # Nettoyer les noms de colonnes
         clean_column_name(parquet_df)
+        
+        # Écrire les données dans PostgreSQL
         if not write_data_postgres(parquet_df):
+            print(f"Échec du traitement pour {parquet_file}")
             del parquet_df
             gc.collect()
-            return
-
+            continue
+        
+        print(f"Fichier {parquet_file} traité avec succès")
         del parquet_df
         gc.collect()
-
 
 if __name__ == '__main__':
     sys.exit(main())
