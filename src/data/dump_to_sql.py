@@ -1,85 +1,109 @@
-import gc
 import os
 import sys
+import tempfile
+import logging
+from contextlib import contextmanager
+from functools import partial
+from multiprocessing import Pool, cpu_count
 
+import pendulum
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text, inspect
+from sqlalchemy.engine.url import URL
+from minio import Minio
 
+# Configuration centrale avec valeurs par défaut pour le dev local
+DB_CONFIG = {
+    'drivername': os.getenv('DB_DRIVER', 'postgresql'),
+    'username': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASS', 'admin'),
+    'host':     os.getenv('DB_HOST', 'localhost'),
+    'port':     os.getenv('DB_PORT', '15432'),  # Port non standard pour éviter les conflits
+    'database': os.getenv('DB_NAME', 'nyc_warehouse'),
+}
 
-def write_data_postgres(dataframe: pd.DataFrame) -> bool:
-    """
-    Dumps a Dataframe to the DBMS engine
+# Optimisation des performances
+CHUNK_SIZE = int(os.getenv('CHUNK_SIZE', '5000'))  # Taille idéale pour INSERT batch
+NUM_WORKERS = int(os.getenv('NUM_WORKERS', str(cpu_count())))  # Utilisation complète du CPU
 
-    Parameters:
-        - dataframe (pd.Dataframe) : The dataframe to dump into the DBMS engine
-
-    Returns:
-        - bool : True if the connection to the DBMS and the dump to the DBMS is successful, False if either
-        execution is failed
-    """
-    db_config = {
-        "dbms_engine": "postgresql",
-        "dbms_username": "postgres",
-        "dbms_password": "admin",
-        "dbms_ip": "localhost",
-        "dbms_port": "15432",
-        "dbms_database": "nyc_warehouse",
-        "dbms_table": "nyc_raw"
-    }
-
-    db_config["database_url"] = (
-        f"{db_config['dbms_engine']}://{db_config['dbms_username']}:{db_config['dbms_password']}@"
-        f"{db_config['dbms_ip']}:{db_config['dbms_port']}/{db_config['dbms_database']}"
-    )
+@contextmanager
+def temp_file(suffix=''):
+    """Gestion sécurisée des fichiers temporaires avec suppression garantie"""
+    path = tempfile.mktemp(suffix=suffix)
     try:
-        engine = create_engine(db_config["database_url"])
-        with engine.connect():
-            success: bool = True
-            print("Connection successful! Processing parquet file")
-            dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+        yield path
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
-    except Exception as e:
-        success: bool = False
-        print(f"Error connection to the database: {e}")
-        return success
+def ensure_database_exists():
+    """Crée la BDD si inexistante en se connectant d'abord à postgres"""
+    admin_url = URL(**{**DB_CONFIG, 'database': 'postgres'})
+    engine = create_engine(admin_url)
 
-    return success
+    try:
+        with engine.connect().execution_options(isolation_level='AUTOCOMMIT') as conn:
+            exists = conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :db"),
+                {'db': DB_CONFIG['database']}
+            ).scalar()
+            if not exists:
+                conn.execute(text(f"CREATE DATABASE {DB_CONFIG['database']!r}"))
+                logger.info("Nouvelle base créée: %s", DB_CONFIG['database'])
+    finally:
+        engine.dispose()  # Toujours libérer les connexions
 
+def process_file(object_name: str):
+    """Pipeline complet pour un fichier: téléchargement → lecture → insertion"""
+    client = Minio(**MINIO_CONFIG)
+    with temp_file('.parquet') as path:
+        try:
+            logger.info("Traitement de %s", object_name)
+            download_parquet(client, object_name, path)
+            
+            # Lecture itérative pour économiser la mémoire
+            df_iter = pd.read_parquet(path, engine='pyarrow', chunksize=CHUNK_SIZE)
+            engine = get_engine()
 
-def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """
-    Take a Dataframe and rewrite it columns into a lowercase format.
-    Parameters:
-        - dataframe (pd.DataFrame) : The dataframe columns to change
+            # Schéma auto-détecté si table inexistante
+            if not inspect(engine).has_table(TABLE_NAME):
+                first_chunk = next(df_iter)
+                clean_columns(first_chunk).head(0).to_sql(TABLE_NAME, engine, index=False)
+                df_iter = pd.read_parquet(path, engine='pyarrow', chunksize=CHUNK_SIZE)  # Reset iterator
 
-    Returns:
-        - pd.Dataframe : The changed Dataframe into lowercase format
-    """
-    dataframe.columns = map(str.lower, dataframe.columns)
-    return dataframe
+            for chunk in df_iter:
+                ingest_chunk(clean_columns(chunk), engine)
 
+            return True
+        except Exception as e:
+            logger.error("Échec sur %s: %s", object_name, str(e))
+            return False
+        finally:
+            engine.dispose()
 
-def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
-    folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
+def main():
+    """Workflow principal avec parallélisation et suivi des performances"""
+    start_time = pendulum.now()
+    ensure_database_exists()
+    
+    client = Minio(**MINIO_CONFIG)
+    parquet_files = list_parquet_objects(client)
+    logger.info("%d fichiers Parquet à traiter", len(parquet_files))
 
-    parquet_files = [f for f in os.listdir(folder_path) if
-                     f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
+    # Pool de workers pour le traitement parallèle
+    with Pool(processes=NUM_WORKERS) as pool:
+        results = pool.map(process_file, parquet_files)
 
-    for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
-
-        clean_column_name(parquet_df)
-        if not write_data_postgres(parquet_df):
-            del parquet_df
-            gc.collect()
-            return
-
-        del parquet_df
-        gc.collect()
-
+    # Rapport final avec métriques
+    success_count = sum(results)
+    logger.info(
+        "Terminé: %d succès | %d échecs | Durée: %s",
+        success_count,
+        len(parquet_files) - success_count,
+        pendulum.now() - start_time
+    )
 
 if __name__ == '__main__':
     sys.exit(main())

@@ -1,0 +1,18 @@
+# Configuration de la source de données NYC Taxi Warehouse
+nyc_warehouse:
+  type: postgresql
+  connection:
+    host: ${DB_HOST:localhost}      # Peut être remplacé par variable d'environnement
+    port: ${DB_PORT:15432}          # Port personnalisé pour éviter les conflits
+    username: ${DB_USER:postgres}   # Utilisateur par défaut
+    password: ${DB_PASS:admin}      # À sécuriser en production
+    options:
+      connect_timeout: 10           # Timeout de connexion en secondes
+      sslmode: prefer               # Sécurité optionnelle
+  
+  database: nyc_taxi_warehouse      # Nom standardisé
+  schema: raw_data                  # Séparation des schémas
+  metadata:
+    description: "Entrepôt principal des données NYC Taxi"
+    owner: data_engineering
+    created: 2023-11-15

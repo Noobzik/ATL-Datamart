@@ -57,32 +57,31 @@ services:
       - MINIO_ROOT_PASSWORD=minio123
     networks:
       - spark_network
-  data-warehouse:
+  db:
     image: postgres:latest
     restart: always
     ports:
       - "15432:5432"
     environment:
-      POSTGRES_USER: admin
+      POSTGRES_USERNAME: admin
       POSTGRES_PASSWORD: admin
     networks:
       - spark_network
     volumes:
-    - pgdatawarehouse:/var/lib/postgresql/data
-
-  data-mart:
+    - pgdata:/var/lib/postgresql/data
+  db-datamart:
     image: postgres:latest
     restart: always
     ports:
-      - "15435:5432"
+      - "15435:5432"  # Port exposé pour accéder au Data Mart
     environment:
-      POSTGRES_USER: admin
+      POSTGRES_USERNAME: admin
       POSTGRES_PASSWORD: admin
     networks:
       - spark_network
     volumes:
-    - pgdatamart:/var/lib/postgresql/data
-    
+      - pgdata-datamart:/var/lib/postgresql/data
+
   postgres-airflow:
     image: postgres:13
     environment:
@@ -309,7 +308,6 @@ networks:
     name: spark_network
 
 volumes:
-  pgdatamart:
-  pgdatawarehouse:
+  pgdata:
   postgres-db-volume:
- 
+  pgdata-datamart:
