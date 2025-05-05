@@ -1,39 +1,52 @@
-from minio import Minio
+import os
 import urllib.request
-import pandas as pd
-import sys
 
-def main():
-    grab_data()
-    
-
-def grab_data() -> None:
-    """Grab the data from New York Yellow Taxi
-
-    This method download x files of the New York Yellow Taxi. 
-    
-    Files need to be saved into "../../data/raw" folder
-    This methods takes no arguments and returns nothing.
+def execute_data_ingestion():
     """
-
-
-def write_data_minio():
+    Fonction principale qui orchestre la récupération des données NYC Taxi 
+    et leur envoi vers le stockage MinIO.
     """
-    This method put all Parquet files into Minio
-    Ne pas faire cette méthode pour le moment
-    """
-    client = Minio(
-        "localhost:9000",
-        secure=False,
-        access_key="minio",
-        secret_key="minio123"
-    )
-    bucket: str = "NOM_DU_BUCKET_ICI"
-    found = client.bucket_exists(bucket)
-    if not found:
-        client.make_bucket(bucket)
-    else:
-        print("Bucket " + bucket + " existe déjà")
+    download_nyc_taxi_files()
+    upload_files_to_minio()
 
-if __name__ == '__main__':
-    sys.exit(main())
+
+def download_nyc_taxi_files():
+    """
+    Récupère les fichiers de données NYC Taxi et les place dans un dossier local.
+    Le dossier de destination est configuré ici comme un sous-dossier du bureau de l'utilisateur.
+    """
+    from pathlib import Path
+
+    # Définition du répertoire local de destination
+    desktop_path = Path.home() / "Desktop"
+    destination_dir = desktop_path / "nyc_taxi_dataset"
+    destination_dir.mkdir(parents=True, exist_ok=True)
+
+    # Base URL pour le téléchargement des fichiers
+    Baseurls = [
+        "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-",
+        "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-12.parquet"
+    ]
+
+    for url in urls:
+        file_name = url.split("/")[-1]
+        local_file_path = destination_dir / file_name
+
+        if local_file_path.exists():
+            print(f"ℹ {file_name} déjà présent. Aucun téléchargement nécessaire.")
+            continue
+
+        try:
+            print(f"⬇ Téléchargement de {file_name}...")
+            urllib.request.urlretrieve(url, local_file_path)
+            print(f" Enregistré dans : {local_file_path}")
+        except Exception as e:
+            print(f" Erreur lors du téléchargement de {file_name} : {e}")
+
+
+        try:
+            print(f"⬇ Téléchargement en cours : {filename}")
+            urllib.request.urlretrieve(url, target_path)
+            print(f" Fichier sauvegardé : {target_path}")
+        except Exception as error:
+            print(f" Échec lors du téléchargement de {filename} : {error}")
