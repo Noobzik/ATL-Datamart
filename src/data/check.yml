@@ -1,0 +1,69 @@
+checks_for_nyc_raw:
+  # Vérification du schéma (structure de la table)
+  - schema_check:
+      name: "Validation de la structure de la table"
+      severity: error  # Niveau de sévérité global
+      checks:
+        required_columns:  # Colonnes obligatoires
+          - vendorid
+          - tpep_pickup_datetime
+          - tpep_dropoff_datetime
+          - passenger_count
+          - trip_distance
+          - ratecodeid
+          - payment_type
+          - fare_amount
+          - pulocationid
+          - dolocationid
+        forbidden_columns: []  # Aucune colonne interdite
+    
+  # Vérification des métriques de base
+  - volume_check:
+      name: "Vérification du volume de données"
+      min_count: 1000  # Seuil minimum absolu
+      warn_if_below: 100000  # Seuil d'avertissement
+      fail_if_below: 10000   # Seuil d'échec
+    
+  # Vérification de la qualité des données
+  - data_quality:
+      checks:
+        - column: vendorid
+          valid_values: [1, 2]  # Seulement 2 vendeurs autorisés
+          null_percentage: 
+            warn_if_above: 1%
+            fail_if_above: 5%
+        
+        - column: passenger_count
+          min_value: 0
+          max_value: 9  # Selon régulation NYC
+          zero_percentage: 
+            warn_if_above: 10%  # Trajets sans passagers suspects
+            
+        - column: trip_distance
+          min_value: 0
+          max_value: 1000  # 1000 miles = seuil réaliste
+          zero_percentage: 
+            fail_if_above: 1%  # Trajets de 0 distance invalides
+    
+  # Vérification temporelle
+  - temporal_coherence:
+      pickup_column: tpep_pickup_datetime
+      dropoff_column: tpep_dropoff_datetime
+      checks:
+        - time_diff: 
+            min_seconds: 30  # Durée minimale d'une course
+            max_hours: 24    # Durée maximale réaliste
+        - future_dates: 
+            fail_if_any: true  # Pas de dates futures
+        - pickup_before_dropoff: 
+            fail_if_violation: true
+    
+  # Cohérence géographique
+  - geographic_consistency:
+      location_columns:
+        - pulocationid
+        - dolocationid
+      checks:
+        - valid_zones: "SELECT locationid FROM ref_taxi_zones"  # Vérification par rapport à une table de référence
+        - same_location: 
+            warn_if_above: 5%  # Courses avec même pickup/dropoff
