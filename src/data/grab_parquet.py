@@ -1,39 +1,21 @@
 from minio import Minio
-import urllib.request
-import pandas as pd
-import sys
+import os
 
-def main():
-    grab_data()
-    
+client = Minio(
+    "localhost:9000",
+    access_key="admin",
+    secret_key="password",
+    secure=False
+)
 
-def grab_data() -> None:
-    """Grab the data from New York Yellow Taxi
+bucket_name = "taxi-data"
+found = client.bucket_exists(bucket_name)
+if not found:
+    client.make_bucket(bucket_name)
 
-    This method download x files of the New York Yellow Taxi. 
-    
-    Files need to be saved into "../../data/raw" folder
-    This methods takes no arguments and returns nothing.
-    """
+local_file = "C:/Users/jolib/ATL-Datamart/data/raw/yellow_tripdata_2025-03.parquet"
+object_name = os.path.basename(local_file)
 
-
-def write_data_minio():
-    """
-    This method put all Parquet files into Minio
-    Ne pas faire cette méthode pour le moment
-    """
-    client = Minio(
-        "localhost:9000",
-        secure=False,
-        access_key="minio",
-        secret_key="minio123"
-    )
-    bucket: str = "NOM_DU_BUCKET_ICI"
-    found = client.bucket_exists(bucket)
-    if not found:
-        client.make_bucket(bucket)
-    else:
-        print("Bucket " + bucket + " existe déjà")
-
-if __name__ == '__main__':
-    sys.exit(main())
+# Upload vers MinIO
+client.fput_object(bucket_name, object_name, local_file)
+print(f"Fichier {object_name} envoyé vers MinIO.")

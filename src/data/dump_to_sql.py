@@ -1,85 +1,33 @@
-import gc
-import os
-import sys
-
+from minio import Minio
 import pandas as pd
+import os
 from sqlalchemy import create_engine
 
+minio_client = Minio(
+    "localhost:9000",
+    access_key="admin",
+    secret_key="password",
+    secure=False
+)
 
-def write_data_postgres(dataframe: pd.DataFrame) -> bool:
-    """
-    Dumps a Dataframe to the DBMS engine
+bucket_name = "taxi-data"
+object_name = "yellow_tripdata_2025-03.parquet"
+local_parquet_path = os.path.join("data", "interim", object_name)
 
-    Parameters:
-        - dataframe (pd.Dataframe) : The dataframe to dump into the DBMS engine
+minio_client.fget_object(bucket_name, object_name, local_parquet_path)
+print(f"Téléchargé : {object_name}")
 
-    Returns:
-        - bool : True if the connection to the DBMS and the dump to the DBMS is successful, False if either
-        execution is failed
-    """
-    db_config = {
-        "dbms_engine": "postgresql",
-        "dbms_username": "postgres",
-        "dbms_password": "admin",
-        "dbms_ip": "localhost",
-        "dbms_port": "15432",
-        "dbms_database": "nyc_warehouse",
-        "dbms_table": "nyc_raw"
-    }
+df = pd.read_parquet(local_parquet_path)
+print(f"Lignes : {len(df)}")
 
-    db_config["database_url"] = (
-        f"{db_config['dbms_engine']}://{db_config['dbms_username']}:{db_config['dbms_password']}@"
-        f"{db_config['dbms_ip']}:{db_config['dbms_port']}/{db_config['dbms_database']}"
-    )
-    try:
-        engine = create_engine(db_config["database_url"])
-        with engine.connect():
-            success: bool = True
-            print("Connection successful! Processing parquet file")
-            dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+db_user = "postgres"
+db_password = "root"
+db_host = "localhost"
+db_port = "5432"
+db_name = "data_warehouse"
 
-    except Exception as e:
-        success: bool = False
-        print(f"Error connection to the database: {e}")
-        return success
+engine = create_engine(f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}")
 
-    return success
-
-
-def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """
-    Take a Dataframe and rewrite it columns into a lowercase format.
-    Parameters:
-        - dataframe (pd.DataFrame) : The dataframe columns to change
-
-    Returns:
-        - pd.Dataframe : The changed Dataframe into lowercase format
-    """
-    dataframe.columns = map(str.lower, dataframe.columns)
-    return dataframe
-
-
-def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
-    folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
-
-    parquet_files = [f for f in os.listdir(folder_path) if
-                     f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
-
-    for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
-
-        clean_column_name(parquet_df)
-        if not write_data_postgres(parquet_df):
-            del parquet_df
-            gc.collect()
-            return
-
-        del parquet_df
-        gc.collect()
-
-
-if __name__ == '__main__':
-    sys.exit(main())
+table_name = "taxi_data"
+df.to_sql(table_name, engine, if_exists='replace', index=False)
+print("Données insérées dans PostgreSQL.")
