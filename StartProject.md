@@ -6,3 +6,4 @@ admin=# CREATE DATABASE nyc_warehouse;
 docker exec -it atl-datamart_data-mart_1 psql -U admin
 admin=# CREATE DATABASE nyc_datamart;
 python src/data/dump_to_sql.py
+streamlit run src/visualization/visualize.py
