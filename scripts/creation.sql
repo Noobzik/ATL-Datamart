@@ -6,12 +6,12 @@ CREATE TABLE dim_time (
 
 CREATE TABLE dim_vendor (
     id SERIAL PRIMARY KEY,
-    vendor_id VARCHAR(10)
+    vendor_id INT
 );
 
 CREATE TABLE dim_payment (
     id SERIAL PRIMARY KEY,
-    payment_type VARCHAR(20)
+    payment_type BIGINT
 );
 
 CREATE TABLE f_trips (
@@ -19,7 +19,7 @@ CREATE TABLE f_trips (
     vendor_id INT REFERENCES dim_vendor(id),
     time_id INT REFERENCES dim_time(id),
     payment_id INT REFERENCES dim_payment(id),
-    passenger_count INT,
+    passenger_count FLOAT,
     trip_distance FLOAT,
     total_amount FLOAT
 );
