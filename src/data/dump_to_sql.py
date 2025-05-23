@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     """
+<<<<<<< HEAD
     Dumps a Dataframe to the DBMS engine with real-time logging
 
     Parameters:
@@ -19,6 +20,20 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     db_config = {
         "dbms_engine": "postgresql",
         "dbms_username": "admin",
+=======
+    Dumps a Dataframe to the DBMS engine
+
+    Parameters:
+        - dataframe (pd.Dataframe) : The dataframe to dump into the DBMS engine
+
+    Returns:
+        - bool : True if the connection to the DBMS and the dump to the DBMS is successful, False if either
+        execution is failed
+    """
+    db_config = {
+        "dbms_engine": "postgresql",
+        "dbms_username": "postgres",
+>>>>>>> 2ecb5002085e6a6f73c022aeb65f46a29bbeb5d0
         "dbms_password": "admin",
         "dbms_ip": "localhost",
         "dbms_port": "15432",
@@ -30,6 +45,7 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         f"{db_config['dbms_engine']}://{db_config['dbms_username']}:{db_config['dbms_password']}@"
         f"{db_config['dbms_ip']}:{db_config['dbms_port']}/{db_config['dbms_database']}"
     )
+<<<<<<< HEAD
 
     try:
         engine = create_engine(db_config["database_url"])
@@ -57,15 +73,43 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         return success
 
     print("✅ Insertion complète terminée !")
+=======
+    try:
+        engine = create_engine(db_config["database_url"])
+        with engine.connect():
+            success: bool = True
+            print("Connection successful! Processing parquet file")
+            dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+
+    except Exception as e:
+        success: bool = False
+        print(f"Error connection to the database: {e}")
+        return success
+
+>>>>>>> 2ecb5002085e6a6f73c022aeb65f46a29bbeb5d0
     return success
 
 
 def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
+<<<<<<< HEAD
+=======
+    """
+    Take a Dataframe and rewrite it columns into a lowercase format.
+    Parameters:
+        - dataframe (pd.DataFrame) : The dataframe columns to change
+
+    Returns:
+        - pd.Dataframe : The changed Dataframe into lowercase format
+    """
+>>>>>>> 2ecb5002085e6a6f73c022aeb65f46a29bbeb5d0
     dataframe.columns = map(str.lower, dataframe.columns)
     return dataframe
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2ecb5002085e6a6f73c022aeb65f46a29bbeb5d0
 def main() -> None:
     # folder_path: str = r'..\..\data\raw'
     script_dir = os.path.dirname(os.path.abspath(__file__))

@@ -7,7 +7,11 @@ Sphinx
 coverage
 boto3
 flake8
+<<<<<<< HEAD
 minio
+=======
+Minio
+>>>>>>> 2ecb5002085e6a6f73c022aeb65f46a29bbeb5d0
 python-dotenv
 pendulum
 pandas

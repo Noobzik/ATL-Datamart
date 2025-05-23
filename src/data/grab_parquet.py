@@ -1,17 +1,26 @@
 from minio import Minio
 import urllib.request
+<<<<<<< HEAD
 import os
 from pathlib import Path
+=======
+import pandas as pd
+>>>>>>> 2ecb5002085e6a6f73c022aeb65f46a29bbeb5d0
 import sys
 
 def main():
     grab_data()
+<<<<<<< HEAD
     write_data_minio()
+=======
+    
+>>>>>>> 2ecb5002085e6a6f73c022aeb65f46a29bbeb5d0
 
 def grab_data() -> None:
     """Grab the data from New York Yellow Taxi
 
     This method download x files of the New York Yellow Taxi. 
+<<<<<<< HEAD
     Files need to be saved into "../../data/raw" folder
     This methods takes no arguments and returns nothing.
     """
@@ -61,6 +70,31 @@ def write_data_minio():
         client.fput_object(bucket, object_name, str(file))
         print(f"✅ {object_name} uploadé avec succès.")
 
+=======
+    
+    Files need to be saved into "../../data/raw" folder
+    This methods takes no arguments and returns nothing.
+    """
+
+
+def write_data_minio():
+    """
+    This method put all Parquet files into Minio
+    Ne pas faire cette méthode pour le moment
+    """
+    client = Minio(
+        "localhost:9000",
+        secure=False,
+        access_key="minio",
+        secret_key="minio123"
+    )
+    bucket: str = "NOM_DU_BUCKET_ICI"
+    found = client.bucket_exists(bucket)
+    if not found:
+        client.make_bucket(bucket)
+    else:
+        print("Bucket " + bucket + " existe déjà")
+>>>>>>> 2ecb5002085e6a6f73c022aeb65f46a29bbeb5d0
 
 if __name__ == '__main__':
     sys.exit(main())
