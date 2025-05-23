@@ -1,10 +1,10 @@
--- CREATE EXTENSION IF NOT EXISTS postgres_fdw;
+CREATE EXTENSION IF NOT EXISTS postgres_fdw;
 
---CREATE SERVER source_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'atl-datamart_data-warehouse_1', dbname 'nyc_warehouse', port '5432');
+CREATE SERVER source_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'data-warehouse', dbname 'nyc_warehouse', port '5432');
 
---CREATE USER MAPPING FOR admin SERVER source_server OPTIONS (user 'admin', password 'admin');
+CREATE USER MAPPING FOR admin SERVER source_server OPTIONS (user 'admin', password 'admin');
 
---CREATE FOREIGN TABLE foreign_table ( vendorid int4 NULL, tpep_pickup_datetime timestamp NULL, tpep_dropoff_datetime timestamp NULL, passenger_count float8 NULL, trip_distance float8 NULL, ratecodeid float8 NULL, store_and_fwd_flag text NULL, pulocationid int4 NULL, dolocationid int4 NULL, payment_type int8 NULL, fare_amount float8 NULL, extra float8 NULL, mta_tax float8 NULL, tip_amount float8 NULL, tolls_amount float8 NULL, improvement_surcharge float8 NULL, total_amount float8 NULL, congestion_surcharge float8 NULL, airport_fee float8 NULL ) SERVER source_server OPTIONS (schema_name 'public', table_name 'nyc_raw');
+CREATE FOREIGN TABLE foreign_table ( vendorid int4 NULL, tpep_pickup_datetime timestamp NULL, tpep_dropoff_datetime timestamp NULL, passenger_count float8 NULL, trip_distance float8 NULL, ratecodeid float8 NULL, store_and_fwd_flag text NULL, pulocationid int4 NULL, dolocationid int4 NULL, payment_type int8 NULL, fare_amount float8 NULL, extra float8 NULL, mta_tax float8 NULL, tip_amount float8 NULL, tolls_amount float8 NULL, improvement_surcharge float8 NULL, total_amount float8 NULL, congestion_surcharge float8 NULL, airport_fee float8 NULL ) SERVER source_server OPTIONS (schema_name 'public', table_name 'nyc_raw');
 
 
 CREATE TABLE "dim_vendor" (
