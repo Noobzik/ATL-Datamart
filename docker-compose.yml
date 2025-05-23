@@ -80,6 +80,7 @@ services:
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
+      POSTGRES_DB: nyc_datamart
     networks:
       - spark_network
     volumes:
@@ -121,7 +122,7 @@ services:
 
   airflow-webserver:
       <<: *airflow-common
-      command: webserver
+      command: api-server
       ports:
         - "8080:8080"
       healthcheck:
