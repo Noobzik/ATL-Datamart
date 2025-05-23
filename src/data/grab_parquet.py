@@ -15,17 +15,9 @@ def grab_data() -> None:
     Files need to be saved into "../../data/raw" folder
     This methods takes no arguments and returns nothing.
     """
-    print("Downloading files")
-    for i in range(1, 11):
-        if i < 10:
-            i = "0" + str(i)
-        else:
-            i = str(i)
-
-        print("Downloading file yellow_tripdata_2024-" + i + ".parquet")
-        request = urllib.request.urlopen("https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-" + i + ".parquet")
-        with open("data/raw/yellow_tripdata_2024-" + i + ".parquet", "wb") as f:
-            f.write(request.read())
+    request = urllib.request.urlopen("https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2025-01.parquet")
+    with open("data/raw/yellow_tripdata_2025-01.parquet", "wb") as f:
+        f.write(request.read())
 
     print("All files have been downloaded")
 
@@ -49,14 +41,7 @@ def write_data_minio():
         print("Bucket " + bucket + " existe déjà")
 
     print("Uploading files to Minio")
-    for i in range(1, 11):
-        if i < 10:
-            i = "0" + str(i)
-        else:
-            i = str(i)
-
-        print("Uploading file yellow_tripdata_2024-" + i + ".parquet")
-        client.fput_object(bucket, "yellow_tripdata_2024-" + i + ".parquet", "data/raw/yellow_tripdata_2024-" + i + ".parquet")
+    client.fput_object(bucket, "yellow_tripdata_2025-01.parquet", "data/raw/yellow_tripdata_2025-01.parquet")
 
     print("All files have been uploaded")
 

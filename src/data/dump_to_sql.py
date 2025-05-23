@@ -1,22 +1,69 @@
 import gc
-import os
 import sys
-
+import json
+import signal
+import os
+from pathlib import Path
+from io import BytesIO
+from minio import Minio
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, Float, String, DateTime, text
+from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn, TimeRemainingColumn
+from rich import print
 
+# Add state management
+STATE_FILE = Path(__file__).parent / "import_state.json"
 
-def write_data_postgres(dataframe: pd.DataFrame) -> bool:
+def load_state():
+    if (STATE_FILE).exists():
+        with open(STATE_FILE) as f:
+            return json.load(f)
+    return {"last_file": None, "rows_inserted": 0}
+
+def save_state(filename, rows_inserted):
+    with open(STATE_FILE, "w") as f:
+        json.dump({"last_file": filename, "rows_inserted": rows_inserted}, f)
+
+def ensure_table_exists(engine, dataframe: pd.DataFrame, table_name: str) -> None:
     """
-    Dumps a Dataframe to the DBMS engine
-
-    Parameters:
-        - dataframe (pd.Dataframe) : The dataframe to dump into the DBMS engine
-
-    Returns:
-        - bool : True if the connection to the DBMS and the dump to the DBMS is successful, False if either
-        execution is failed
+    Creates the table if it doesn't exist based on DataFrame schema
     """
+    metadata = MetaData()
+
+    # Map pandas dtypes to SQLAlchemy types
+    type_map = {
+        'int64': Integer,
+        'float64': Float,
+        'object': String,
+        'datetime64[ns]': DateTime
+    }
+
+    # Create table definition
+    columns = []
+    for column_name, dtype in dataframe.dtypes.items():
+        sql_type = type_map.get(str(dtype), String)
+        columns.append(Column(column_name, sql_type))
+
+    # Define table
+    Table(table_name, metadata, *columns)
+
+    # Create table if it doesn't exist
+    metadata.create_all(engine)
+
+
+def write_data_postgres(dataframe: pd.DataFrame, filename: str, resume_from: int = 0) -> bool:
+    """
+    Dumps a Dataframe to the DBMS engine with resumption capability
+    """
+    # Add signal handling
+    interrupted = False
+    def signal_handler(signum, frame):
+        nonlocal interrupted
+        print("\n[yellow]Interrupt received, completing current chunk...")
+        interrupted = True
+
+    signal.signal(signal.SIGINT, signal_handler)
+
     db_config = {
         "dbms_engine": "postgresql",
         "dbms_username": "postgres",
@@ -33,14 +80,81 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     )
     try:
         engine = create_engine(db_config["database_url"])
-        with engine.connect():
+        with engine.connect() as connection:
+            # Validate table before starting
+            try:
+                connection.execute(f"SELECT 1 FROM {db_config['dbms_table']} LIMIT 1")
+                progress.print("[green]Table validation successful")
+            except Exception:
+                # Table doesn't exist or is corrupted, create new
+                ensure_table_exists(engine, dataframe, db_config["dbms_table"])
+                return True
+
             success: bool = True
-            print("Connection successful! Processing parquet file")
-            dataframe.to_sql(db_config["dbms_table"], engine, index=False, if_exists='append')
+            chunk_size = 50000
+            total_rows = len(dataframe)
+            rows_inserted = resume_from
+
+            with Progress(
+                SpinnerColumn(),
+                *Progress.get_default_columns(),
+                TimeElapsedColumn(),
+                TimeRemainingColumn(),
+                refresh_per_second=1
+            ) as progress:
+                task = progress.add_task(
+                    f"[cyan]Inserting {total_rows:,} rows (resuming from {resume_from:,})...",
+                    total=total_rows
+                )
+                progress.update(task, completed=resume_from)
+
+                for chunk_start in range(resume_from, total_rows, chunk_size):
+                    if interrupted:
+                        progress.print("[yellow]Gracefully stopping after current chunk")
+                        break
+
+                    chunk_end = min(chunk_start + chunk_size, total_rows)
+                    chunk = dataframe.iloc[chunk_start:chunk_end]
+
+                    # Each chunk gets its own transaction
+                    try:
+                        with connection.begin():
+                            chunk.to_sql(
+                                db_config["dbms_table"],
+                                connection,
+                                index=False,
+                                if_exists='append',
+                                method='multi'
+                            )
+                            # Verify chunk insertion by checking total rows
+                            verify_sql = text(
+                                f"SELECT COUNT(*) FROM {db_config['dbms_table']}"
+                            )
+                            total_in_db = connection.execute(verify_sql).scalar()
+                            expected_rows = resume_from + rows_inserted + len(chunk)
+
+                            if total_in_db == expected_rows:
+                                rows_inserted += len(chunk)
+                                progress.update(task, completed=rows_inserted)
+                                progress.print(f"Chunk verified: {rows_inserted:,}/{total_rows:,} rows (Total in DB: {total_in_db:,})")
+                                save_state(filename, rows_inserted)
+                            else:
+                                raise Exception(
+                                    f"Chunk verification failed: DB has {total_in_db:,} rows, "
+                                    f"expected {expected_rows:,}"
+                                )
+
+                    except Exception as chunk_error:
+                        progress.print(f"[red]Error inserting chunk: {chunk_error}")
+                        save_state(filename, rows_inserted)  # Save progress on error
+                        continue
+
+                final_status = "[green]" if rows_inserted == total_rows else "[yellow]"
+                progress.print(f"{final_status}Inserted and verified {rows_inserted:,}/{total_rows:,} rows")
 
     except Exception as e:
         success: bool = False
-        print(f"Error connection to the database: {e}")
+        print(f"[red]Critical Error: {str(e)}")
         return success
 
     return success
@@ -60,25 +174,50 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
-    # folder_path: str = r'..\..\data\raw'
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the relative path to the folder
-    folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
+    client = Minio(
+        "localhost:9000",
+        secure=False,
+        access_key="minio",
+        secret_key="minio123"
+    )
+    bucket: str = "my-bucket"
 
-    parquet_files = [f for f in os.listdir(folder_path) if
-                     f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
+    # Load previous state
+    state = load_state()
 
-    for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
+    for obj in client.list_objects(bucket):
+        try:
+            data = client.get_object(bucket, obj.object_name)
+            buffer = BytesIO(data.read())
+            parquet_df: pd.DataFrame = pd.read_parquet(buffer, engine='pyarrow')
 
-        clean_column_name(parquet_df)
-        if not write_data_postgres(parquet_df):
+            # Display parquet file statistics
+            print(f"\nFile: {obj.object_name}")
+            print(f"Total rows: {len(parquet_df):,}")
+            print(f"Total columns: {len(parquet_df.columns)}")
+            print(f"Memory usage: {parquet_df.memory_usage().sum() / 1024**2:.2f} MB")
+            # print("\nColumn types:")
+            # print(parquet_df.dtypes)
+            # print("-" * 50)
+
+            clean_column_name(parquet_df)
+            # Resume from last position if it's the interrupted file
+            resume_from = state["rows_inserted"] if obj.object_name == state["last_file"] else 0
+            if not write_data_postgres(parquet_df, obj.object_name, resume_from):
+                del parquet_df
+                gc.collect()
+                return
+
             del parquet_df
             gc.collect()
-            return
 
-        del parquet_df
-        gc.collect()
+        except Exception as e:
+            print(f"Error processing file {obj.object_name}: {e}")
+            continue
+
+    # Clear state file after successful completion
+    # if STATE_FILE.exists():
+    #     os.remove(STATE_FILE)
 
 
 if __name__ == '__main__':

@@ -90,3 +90,5 @@ target/
 
 # Minio
 minio/
+
+.venv
