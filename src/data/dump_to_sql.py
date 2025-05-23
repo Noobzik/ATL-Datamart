@@ -2,7 +2,6 @@ import gc
 import sys
 import json
 import signal
-import os
 from pathlib import Path
 from io import BytesIO
 from minio import Minio
@@ -39,7 +38,7 @@ def ensure_table_exists(engine, dataframe: pd.DataFrame, table_name: str) -> Non
     }
 
     # Create table definition
-    columns = []
+    columns = [Column('rowid', Integer, primary_key=True, autoincrement=True)]
     for column_name, dtype in dataframe.dtypes.items():
         sql_type = type_map.get(str(dtype), String)
         columns.append(Column(column_name, sql_type))
@@ -52,6 +51,7 @@ def ensure_table_exists(engine, dataframe: pd.DataFrame, table_name: str) -> Non
 
 
 def write_data_postgres(dataframe: pd.DataFrame, filename: str, resume_from: int = 0) -> bool:
+    print(f"[cyan]Starting to write {filename} to PostgreSQL")
     """
     Dumps a Dataframe to the DBMS engine with resumption capability
     """
@@ -66,7 +66,7 @@ def write_data_postgres(dataframe: pd.DataFrame, filename: str, resume_from: int
 
     db_config = {
         "dbms_engine": "postgresql",
-        "dbms_username": "postgres",
+        "dbms_username": "admin",
         "dbms_password": "admin",
         "dbms_ip": "localhost",
         "dbms_port": "15432",
@@ -79,19 +79,36 @@ def write_data_postgres(dataframe: pd.DataFrame, filename: str, resume_from: int
         f"{db_config['dbms_ip']}:{db_config['dbms_port']}/{db_config['dbms_database']}"
     )
     try:
+        print(f"[cyan]Connecting to {db_config['database_url']}")
         engine = create_engine(db_config["database_url"])
-        with engine.connect() as connection:
+        with engine.begin() as connection:  # CHANGED from engine.connect() to engine.begin()
             # Validate table before starting
             try:
-                connection.execute(f"SELECT 1 FROM {db_config['dbms_table']} LIMIT 1")
-                progress.print("[green]Table validation successful")
-            except Exception:
+                result = connection.execute(text(f"SELECT 1 FROM {db_config['dbms_table']} LIMIT 1"))
+                result.fetchone()  # Fetch one row to ensure the query is executed
+                print("[green]Table validation successful")
+                # --- SCHEMA CHECK ---
+                table_cols = connection.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name = '{db_config['dbms_table']}' ORDER BY ordinal_position")).fetchall()
+                table_cols = [col[0].lower() for col in table_cols]
+                # Ignore 'rowid' if present in table columns
+                table_cols_no_rowid = [col for col in table_cols if col != 'rowid']
+                df_cols = [col.lower() for col in dataframe.columns]
+                if table_cols_no_rowid != df_cols:
+                    print(f"[red]Schema mismatch! Table columns: {table_cols_no_rowid}\nDataFrame columns: {df_cols}")
+                    print("[red]Aborting to prevent bad inserts. Please recreate the table with the correct schema.")
+                    return False
+                else:
+                    print("[green]Schema matches between DataFrame and table.")
+                # --- END SCHEMA CHECK ---
+            except Exception as e:
+                print(e)
                 # Table doesn't exist or is corrupted, create new
+                print("[red]Table does not exist or is corrupted, creating new table")
                 ensure_table_exists(engine, dataframe, db_config["dbms_table"])
-                return True
+                # return True
 
             success: bool = True
-            chunk_size = 50000
+            chunk_size = 15000
             total_rows = len(dataframe)
             rows_inserted = resume_from
 
@@ -99,7 +116,7 @@ def write_data_postgres(dataframe: pd.DataFrame, filename: str, resume_from: int
                 SpinnerColumn(),
                 *Progress.get_default_columns(),
                 TimeElapsedColumn(),
-                TimeRemainingColumn(),
+                # TimeRemainingColumn(),
                 refresh_per_second=1
             ) as progress:
                 task = progress.add_task(
@@ -116,33 +133,33 @@ def write_data_postgres(dataframe: pd.DataFrame, filename: str, resume_from: int
                     chunk_end = min(chunk_start + chunk_size, total_rows)
                     chunk = dataframe.iloc[chunk_start:chunk_end]
 
-                    # Each chunk gets its own transaction
+                    # Each chunk gets its own error handling, but not an explicit transaction
                     try:
-                        with connection.begin():
-                            chunk.to_sql(
-                                db_config["dbms_table"],
-                                connection,
-                                index=False,
-                                if_exists='append',
-                                method='multi'
-                            )
-                            # Verify chunk insertion by checking total rows
-                            verify_sql = text(
-                                f"SELECT COUNT(*) FROM {db_config['dbms_table']}"
-                            )
-                            total_in_db = connection.execute(verify_sql).scalar()
-                            expected_rows = resume_from + rows_inserted + len(chunk)
+                        chunk.to_sql(
+                            db_config["dbms_table"],
+                            connection,
+                            index=False,
+                            if_exists='append',
+                            method='multi'
+                        )
+                        # Verify chunk insertion by checking total rows
+                        verify_sql = text(
+                            f"SELECT COUNT(*) FROM {db_config['dbms_table']}"
+                        )
+                        total_in_db = connection.execute(verify_sql).scalar()
+                        expected_rows = rows_inserted + len(chunk)  # FIXED: do not double-count resume_from
+                        # progress.print(f"[yellow]DEBUG: total_in_db={total_in_db}, expected_rows={expected_rows}, rows_inserted={rows_inserted}, chunk_len={len(chunk)}")
 
-                            if total_in_db == expected_rows:
-                                rows_inserted += len(chunk)
-                                progress.update(task, completed=rows_inserted)
-                                progress.print(f"Chunk verified: {rows_inserted:,}/{total_rows:,} rows (Total in DB: {total_in_db:,})")
-                                save_state(filename, rows_inserted)
-                            else:
-                                raise Exception(
-                                    f"Chunk verification failed: DB has {total_in_db:,} rows, "
-                                    f"expected {expected_rows:,}"
-                                )
+                        if total_in_db == expected_rows:
+                            rows_inserted += len(chunk)
+                            progress.update(task, completed=rows_inserted)
+                            progress.print(f"Chunk verified: {rows_inserted:,}/{total_rows:,} rows (Total in DB: {total_in_db:,})")
+                            save_state(filename, rows_inserted)
+                        else:
+                            raise Exception(
+                                f"Chunk verification failed: DB has {total_in_db:,} rows, "
+                                f"expected {expected_rows:,}"
+                            )
 
                     except Exception as chunk_error:
                         progress.print(f"[red]Error inserting chunk: {chunk_error}")
@@ -201,8 +218,10 @@ def main() -> None:
             # print("-" * 50)
 
             clean_column_name(parquet_df)
+            print("[green]Column names cleaned")
             # Resume from last position if it's the interrupted file
             resume_from = state["rows_inserted"] if obj.object_name == state["last_file"] else 0
+            print(f"[cyan]Resuming from row {resume_from:,} for file {obj.object_name}")
             if not write_data_postgres(parquet_df, obj.object_name, resume_from):
                 del parquet_df
                 gc.collect()

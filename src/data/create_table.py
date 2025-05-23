@@ -15,7 +15,7 @@ def create_table_from_dataframe(conn, dataframe: pd.DataFrame, table_name: str) 
         'datetime64[ns]': 'TIMESTAMP'
     }
 
-    columns = []
+    columns = ['"rowid" SERIAL PRIMARY KEY']
     for column_name, dtype in dataframe.dtypes.items():
         sql_type = type_map.get(str(dtype), 'TEXT')
         columns.append(f'"{column_name}" {sql_type}')
@@ -59,7 +59,7 @@ def main() -> None:
         # Connect to PostgreSQL
         conn = psycopg2.connect(
             dbname="nyc_warehouse",
-            user="postgres",
+            user="admin",
             password="admin",
             host="localhost",
             port="15432"
