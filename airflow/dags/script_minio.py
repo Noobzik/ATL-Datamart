@@ -2,7 +2,7 @@
 from urllib import request
 from minio import Minio
 from airflow import DAG
-from airflow.providers.standard.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator
 import pendulum
 import os
 import urllib.error
@@ -13,6 +13,8 @@ def download_parquet(**kwargs):
     extension: str = ".parquet"
 
     month: str = pendulum.now().subtract(months=1).format('YYYY-MM')
+    # As of the time of writing, the latest available data is for March 2025
+    # month = '2025-03'
     full_filename: str = f"{filename}_{month}{extension}"
     full_url: str = f"{url}{full_filename}"
 
@@ -34,6 +36,8 @@ def upload_file(**kwargs):
     bucket = 'rawnyc'
 
     month = pendulum.now().subtract(months=1).format('YYYY-MM')
+    # As of the time of writing, the latest available data is for March 2025
+    # month = '2025-03'
     filename = f"yellow_tripdata_{month}.parquet"
 
     found = client.bucket_exists(bucket)

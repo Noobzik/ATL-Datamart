@@ -1,3 +1,25 @@
+-- Étape 1 : Activer l'extension postgres_fdw
+CREATE EXTENSION IF NOT EXISTS postgres_fdw;
+
+-- Étape 2 : Supprimer le serveur distant s’il existe déjà
+DROP SERVER IF EXISTS warehouse_server CASCADE;
+
+-- Étape 3 : Créer le serveur distant vers le data warehouse
+CREATE SERVER warehouse_server
+  FOREIGN DATA WRAPPER postgres_fdw
+  OPTIONS (host 'data-warehouse', port '5432', dbname 'nyc_warehouse');
+
+-- Étape 4 : Créer le mapping utilisateur pour se connecter
+CREATE USER MAPPING FOR admin
+  SERVER warehouse_server
+  OPTIONS (user 'admin', password 'admin');
+
+-- Étape 5 : Récupérer les données du data warehouse
+IMPORT FOREIGN SCHEMA public
+FROM SERVER warehouse_server
+INTO public;
+
+-- Étape 6 : Remplir les tables du data-mart
 -- Remplissage de la dimension du temps
 INSERT INTO dim_time (pickup_date, pickup_hour)
 SELECT DISTINCT 
