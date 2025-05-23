@@ -18,9 +18,7 @@ IMPORT FOREIGN SCHEMA public
     FROM SERVER warehouse_server
     INTO public;
 
--- 5. Now insert data with explicit type casts and fallback values
-
--- dim_vendor
+-- 5. Insert into dim_vendor
 INSERT INTO dim_vendor (vendorid, vendor_name)
 SELECT DISTINCT
     vendorid::int,
@@ -33,7 +31,7 @@ FROM nyc_raw
 WHERE vendorid IS NOT NULL
 ON CONFLICT (vendorid) DO NOTHING;
 
--- dim_payment_type
+-- 6. Insert into dim_payment_type
 INSERT INTO dim_payment_type (payment_type, payment_description)
 SELECT DISTINCT
     payment_type::int,
@@ -50,7 +48,7 @@ FROM nyc_raw
 WHERE payment_type IS NOT NULL
 ON CONFLICT (payment_type) DO NOTHING;
 
--- dim_ratecode
+-- 7. Insert into dim_ratecode
 INSERT INTO dim_ratecode (ratecodeid, rate_description)
 SELECT DISTINCT
     ratecodeid::int,
@@ -67,7 +65,7 @@ FROM nyc_raw
 WHERE ratecodeid IS NOT NULL
 ON CONFLICT (ratecodeid) DO NOTHING;
 
--- dim_trip_flag
+-- 8. Insert into dim_trip_flag
 INSERT INTO dim_trip_flag (store_and_fwd_flag, flag_description)
 SELECT DISTINCT
     store_and_fwd_flag,
@@ -80,7 +78,7 @@ FROM nyc_raw
 WHERE store_and_fwd_flag IS NOT NULL
 ON CONFLICT (store_and_fwd_flag) DO NOTHING;
 
--- dim_time (pickup and dropoff)
+-- 9. Insert into dim_time (pickup)
 INSERT INTO dim_time (datetime, year, month, day, hour, weekday)
 SELECT DISTINCT
     tpep_pickup_datetime::timestamp,
@@ -88,11 +86,12 @@ SELECT DISTINCT
     EXTRACT(MONTH FROM tpep_pickup_datetime::timestamp),
     EXTRACT(DAY FROM tpep_pickup_datetime::timestamp),
     EXTRACT(HOUR FROM tpep_pickup_datetime::timestamp),
-    TO_CHAR(tpep_pickup_datetime::timestamp, 'Day')
+    TO_CHAR(tpep_pickup_datetime::timestamp, 'FMDay')
 FROM nyc_raw
 WHERE tpep_pickup_datetime IS NOT NULL
 ON CONFLICT (datetime) DO NOTHING;
 
+-- dropoff
 INSERT INTO dim_time (datetime, year, month, day, hour, weekday)
 SELECT DISTINCT
     tpep_dropoff_datetime::timestamp,
@@ -100,25 +99,29 @@ SELECT DISTINCT
     EXTRACT(MONTH FROM tpep_dropoff_datetime::timestamp),
     EXTRACT(DAY FROM tpep_dropoff_datetime::timestamp),
     EXTRACT(HOUR FROM tpep_dropoff_datetime::timestamp),
-    TO_CHAR(tpep_dropoff_datetime::timestamp, 'Day')
+    TO_CHAR(tpep_dropoff_datetime::timestamp, 'FMDay')
 FROM nyc_raw
 WHERE tpep_dropoff_datetime IS NOT NULL
 ON CONFLICT (datetime) DO NOTHING;
 
--- dim_location
-INSERT INTO dim_location (locationid)
-SELECT DISTINCT pulocationid::int
+-- 10. Insert into dim_location (pickup and dropoff)
+INSERT INTO dim_location (locationid, borough, zone, service_zone)
+SELECT DISTINCT
+    pulocationid::int,
+    'Unknown', 'Unknown', 'Unknown'
 FROM nyc_raw
 WHERE pulocationid IS NOT NULL
 ON CONFLICT (locationid) DO NOTHING;
 
-INSERT INTO dim_location (locationid)
-SELECT DISTINCT dolocationid::int
+INSERT INTO dim_location (locationid, borough, zone, service_zone)
+SELECT DISTINCT
+    dolocationid::int,
+    'Unknown', 'Unknown', 'Unknown'
 FROM nyc_raw
 WHERE dolocationid IS NOT NULL
 ON CONFLICT (locationid) DO NOTHING;
 
--- fact_trip
+-- 11. Insert into fact_trip
 INSERT INTO fact_trip (
     vendorid, pickup_datetime, dropoff_datetime, passenger_count,
     trip_distance, ratecodeid, store_and_fwd_flag, pulocationid,
@@ -137,17 +140,26 @@ SELECT
     pulocationid::int,
     dolocationid::int,
     payment_type::int,
-    fare_amount::numeric,
-    extra::numeric,
-    mta_tax::numeric,
-    tip_amount::numeric,
-    tolls_amount::numeric,
-    improvement_surcharge::numeric,
-    total_amount::numeric,
-    congestion_surcharge::numeric,
-    airport_fee::numeric,
-    cbd_congestion_fee::numeric
+    GREATEST(fare_amount::numeric, 0),
+    GREATEST(extra::numeric, 0),
+    GREATEST(mta_tax::numeric, 0),
+    GREATEST(tip_amount::numeric, 0),
+    GREATEST(tolls_amount::numeric, 0),
+    GREATEST(improvement_surcharge::numeric, 0),
+    GREATEST(total_amount::numeric, 0),
+    GREATEST(congestion_surcharge::numeric, 0),
+    GREATEST(airport_fee::numeric, 0),
+    GREATEST(cbd_congestion_fee::numeric, 0)
 FROM nyc_raw
 WHERE vendorid IS NOT NULL
   AND tpep_pickup_datetime IS NOT NULL
-  AND tpep_dropoff_datetime IS NOT NULL;
+  AND tpep_dropoff_datetime IS NOT NULL
+  AND passenger_count IS NOT NULL
+  AND trip_distance IS NOT NULL
+  AND ratecodeid IS NOT NULL
+  AND pulocationid IS NOT NULL
+  AND dolocationid IS NOT NULL
+  AND payment_type IS NOT NULL
+  AND fare_amount IS NOT NULL
+  AND total_amount IS NOT NULL;
+
