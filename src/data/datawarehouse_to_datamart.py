@@ -7,6 +7,43 @@ from sqlalchemy import create_engine
 from minio import Minio
 from io import BytesIO
 
+def get_warehouse_engine():
+    db_config = {
+        "dbms_engine": "postgresql",
+        "dbms_username": "admin",
+        "dbms_password": "admin",
+        "dbms_ip": "localhost",
+        "dbms_port": "15432",
+        "dbms_database": "nyc_warehouse",
+        "dbms_table": "nyc_raw"
+    }
+    db_config["database_url"] = (
+        f"{db_config['dbms_engine']}://{db_config['dbms_username']}:{db_config['dbms_password']}@"
+        f"{db_config['dbms_ip']}:{db_config['dbms_port']}/{db_config['dbms_database']}"
+    )
+    return create_engine(db_config["database_url"])
+
+def get_warehouse_engine():
+    db_config = {
+        "dbms_engine": "postgresql",
+        "dbms_username": "admin",
+        "dbms_password": "admin",
+        "dbms_ip": "localhost",
+        "dbms_port": "15432",
+        "dbms_database": "nyc_warehouse",
+        "dbms_tables": [
+            "trip",
+            "vendor",
+            "rate_code",
+            "payment_type",
+        ]
+    }
+    db_config["database_url"] = (
+        f"{db_config['dbms_engine']}://{db_config['dbms_username']}:{db_config['dbms_password']}@"
+        f"{db_config['dbms_ip']}:{db_config['dbms_port']}/{db_config['dbms_database']}"
+    )
+    return create_engine(db_config["database_url"])
+    
 
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     """

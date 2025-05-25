@@ -1,3 +1,4 @@
+from datetime import datetime
 import gc
 import os
 import sys
@@ -6,6 +7,9 @@ import pandas as pd
 from sqlalchemy import create_engine
 from minio import Minio
 from io import BytesIO
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
@@ -23,8 +27,8 @@ def write_data_postgres(dataframe: pd.DataFrame) -> bool:
         "dbms_engine": "postgresql",
         "dbms_username": "admin",
         "dbms_password": "admin",
-        "dbms_ip": "localhost",
-        "dbms_port": "15432",
+        "dbms_ip": "data-warehouse",
+        "dbms_port": "5432",
         "dbms_database": "nyc_warehouse",
         "dbms_table": "nyc_raw"
     }
@@ -61,9 +65,9 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
     return dataframe
 
 
-def main() -> None:
+def dump_to_sql():
     client = Minio(
-        "localhost:9000",
+        "minio:9000",
         secure=False,
         access_key="minio",
         secret_key="minio123"
@@ -87,5 +91,24 @@ def main() -> None:
         gc.collect()
 
 
-if __name__ == '__main__':
-    sys.exit(main())
+with DAG(
+    dag_id="tp2_dump_to_sql",
+    description="Inject parquet files from Minio to PostgreSQL warehouse",
+    schedule_interval=None,
+    start_date=datetime(2025, 1, 1),
+    catchup=False,
+    tags=["tp2", "warehouse", "minio"],
+) as dag:
+    
+    run_etl = PythonOperator(
+        task_id="transfer_minio_to_postgres",
+        python_callable=dump_to_sql,
+        provide_context=True,
+    )
+    
+    trigger_tp3_dag = TriggerDagRunOperator(
+        task_id="trigger_warehouse_to_datamart",
+        trigger_dag_id="warehouse_to_datamart",
+    )
+    
+    run_etl >> trigger_tp3_dag
