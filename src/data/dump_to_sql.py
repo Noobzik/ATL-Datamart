@@ -6,6 +6,13 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 
+MINIO_ENDPOINT = "http://127.0.0.1:9000/"
+ACCESS_KEY = "minio"
+SECRET_KEY = "minio123"
+BUCKET_NAME = "taxi"
+OBJECT_NAME = "yellow_taxi_latest.parquet"  # Nom exact du fichier
+S3_URL = f"s3://{BUCKET_NAME}/{OBJECT_NAME}"
+
 def write_data_postgres(dataframe: pd.DataFrame) -> bool:
     """
     Dumps a Dataframe to the DBMS engine
@@ -59,27 +66,35 @@ def clean_column_name(dataframe: pd.DataFrame) -> pd.DataFrame:
     return dataframe
 
 
-def main() -> None:
+def exportToSql() -> None:
     # folder_path: str = r'..\..\data\raw'
     script_dir = os.path.dirname(os.path.abspath(__file__))
     # Construct the relative path to the folder
+    """
     folder_path = os.path.join(script_dir, '..', '..', 'data', 'raw')
 
     parquet_files = [f for f in os.listdir(folder_path) if
                      f.lower().endswith('.parquet') and os.path.isfile(os.path.join(folder_path, f))]
+    """
+    df = pd.read_parquet(
+        S3_URL,
+        storage_options={
+            "key": ACCESS_KEY,
+            "secret": SECRET_KEY,
+            "client_kwargs": {"endpoint_url": MINIO_ENDPOINT}
+        }
+    )
+    parquet_df: pd.DataFrame = df
 
-    for parquet_file in parquet_files:
-        parquet_df: pd.DataFrame = pd.read_parquet(os.path.join(folder_path, parquet_file), engine='pyarrow')
-
-        clean_column_name(parquet_df)
-        if not write_data_postgres(parquet_df):
-            del parquet_df
-            gc.collect()
-            return
-
+    clean_column_name(parquet_df)
+    if not write_data_postgres(parquet_df):
         del parquet_df
         gc.collect()
+        return
+
+    del parquet_df
+    gc.collect()
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(exportToSql())
