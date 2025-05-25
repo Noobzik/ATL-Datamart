@@ -5,8 +5,8 @@ import pandas as pd
 import sys
 
 def main():
-    get_all_data()
-    #get_last_month_data()
+    #get_all_data()
+    get_last_month_data()
     
 def get_last_month_data():
     grab_data()
