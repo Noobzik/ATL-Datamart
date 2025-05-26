@@ -90,3 +90,6 @@ target/
 
 # Minio
 minio/
+
+.venv
+**/import_state.json

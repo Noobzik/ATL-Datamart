@@ -10,9 +10,9 @@ flake8
 Minio
 python-dotenv
 pendulum
-pandas
+pandas==2.2.3
 sqlalchemy
 setuptools
 pyarrow
-psycopg2
 psycopg2-binary
+rich
