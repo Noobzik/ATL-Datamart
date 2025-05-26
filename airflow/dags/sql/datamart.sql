@@ -37,14 +37,12 @@ CREATE TABLE IF NOT EXISTS dim_trip_flag (
     store_and_fwd_flag CHAR(1) PRIMARY KEY CHECK (store_and_fwd_flag IN ('Y', 'N')),
     flag_description TEXT NOT NULL
 );
-
 -- ====================================
 -- FACT TABLE
 -- ====================================
 
 CREATE TABLE IF NOT EXISTS fact_trip (
     rowid BIGSERIAL PRIMARY KEY,
-
     vendorid INTEGER NOT NULL,
     pickup_datetime TIMESTAMP NOT NULL,
     dropoff_datetime TIMESTAMP NOT NULL,
@@ -55,7 +53,6 @@ CREATE TABLE IF NOT EXISTS fact_trip (
     pulocationid INTEGER NOT NULL,
     dolocationid INTEGER NOT NULL,
     payment_type INTEGER,
-
     fare_amount NUMERIC(10, 2) NOT NULL CHECK (fare_amount >= 0),
     extra NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (extra >= 0),
     mta_tax NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (mta_tax >= 0),
@@ -66,8 +63,6 @@ CREATE TABLE IF NOT EXISTS fact_trip (
     congestion_surcharge NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (congestion_surcharge >= 0),
     airport_fee NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (airport_fee >= 0),
     cbd_congestion_fee NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (cbd_congestion_fee >= 0),
-
-    -- Foreign Keys
     FOREIGN KEY (vendorid) REFERENCES dim_vendor(vendorid) ON DELETE SET NULL,
     FOREIGN KEY (ratecodeid) REFERENCES dim_ratecode(ratecodeid) ON DELETE SET NULL,
     FOREIGN KEY (payment_type) REFERENCES dim_payment_type(payment_type) ON DELETE SET NULL,
@@ -77,7 +72,6 @@ CREATE TABLE IF NOT EXISTS fact_trip (
     FOREIGN KEY (dropoff_datetime) REFERENCES dim_time(datetime) ON DELETE CASCADE,
     FOREIGN KEY (store_and_fwd_flag) REFERENCES dim_trip_flag(store_and_fwd_flag) ON DELETE SET NULL
 );
-
 -- ====================================
 -- INDEXES FOR PERFORMANCE
 -- ====================================
